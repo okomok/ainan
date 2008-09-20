@@ -8,7 +8,7 @@ USING: kernel ; ! =
 USING: qualified ;
 USING: sequences ; ! filter
 
-IN: ainan.learn
+IN: ainan.learn.sequences
 
 QUALIFIED-WITH: sequences seq
 
