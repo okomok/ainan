@@ -10,8 +10,8 @@ QUALIFIED: arrays
 ! LEARN: Don't miss Stack effect declarations, or you will get warnings.
 GENERIC: (is-array?) ( object -- ? )
 
-: is-array? ( object -- ? )
-    (is-array?) ;
+: is-array?
+    (is-array?) ; inline
 
 M: arrays:array (is-array?)
     drop t ;
