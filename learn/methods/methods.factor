@@ -7,11 +7,14 @@ IN: ainan.learn.methods
 
 QUALIFIED: arrays
 
-! LEARN: Don't miss Stack effect declarations.
-GENERIC: is-array? ( object -- ? )
+! LEARN: Don't miss Stack effect declarations, or you will get warnings.
+GENERIC: (is-array?) ( object -- ? )
 
-M: arrays:array is-array?
+: is-array? ( object -- ? )
+    (is-array?) ;
+
+M: arrays:array (is-array?)
     drop t ;
 
-M: object is-array?
+M: object (is-array?)
     drop f ;
