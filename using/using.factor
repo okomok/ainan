@@ -5,19 +5,6 @@ USING: kernel lexer sequences qualified ;
 
 IN: ainan.using
 
-QUALIFIED: sequences
-QUALIFIED: lexer
-
-<PRIVATE
-
-! See: qualified
-: define-words ( vocab-name -- )
-    dup define-qualified
-; inline
-
-PRIVATE>
-
 : AINAN-USING:
-    #! Syntax: AINAN-USING: vocabularies... ;
-    ";" lexer:parse-tokens [ define-words ] sequences:each
+    ";" parse-tokens [ dup define-qualified ] each
 ; parsing
