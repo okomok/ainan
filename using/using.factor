@@ -12,7 +12,7 @@ QUALIFIED: parser
 <PRIVATE
 
 ! See: qualified
-: qualify ( vocab-name -- )
+: rename ( vocab-name -- )
     dup define-qualified ;
 
 PRIVATE>
@@ -21,5 +21,5 @@ PRIVATE>
     #! Syntax: AINAN-USING: vocabularies... ;
     ";" lexer:parse-tokens
         dup parser:add-use
-        [ qualify ] sequences:each
+        [ rename ] sequences:each
 ; parsing
