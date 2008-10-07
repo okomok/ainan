@@ -9,7 +9,7 @@ QUALIFIED: calendar
 QUALIFIED: threads
 QUALIFIED: io.launcher
 
-! USAGE: "E:/Application/app.exe" 12 later-run
-!        "./factor.exe" 10 later-run
+! USAGE: "E:/Application/app.exe" 12 minutes-later
+!        "./factor.exe" 10 minutes-later
 : minutes-later ( path min -- )
     calendar:minutes threads:sleep io.launcher:run-process drop ;
