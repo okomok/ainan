@@ -12,12 +12,12 @@ QUALIFIED: parser
 <PRIVATE
 
 ! See: qualified
-: define ( vocab-name -- )
+: define-words ( vocab-name -- )
     dup define-qualified ;
 
 PRIVATE>
 
 : AINAN-USING:
     #! Syntax: AINAN-USING: vocabularies... ;
-    ";" lexer:parse-tokens [ define ] sequences:each
+    ";" lexer:parse-tokens [ define-words ] sequences:each
 ; parsing
