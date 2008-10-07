@@ -12,7 +12,8 @@ QUALIFIED: lexer
 
 ! See: qualified
 : define-words ( vocab-name -- )
-    dup define-qualified ;
+    dup define-qualified
+; inline
 
 PRIVATE>
 
