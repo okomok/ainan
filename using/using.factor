@@ -19,6 +19,5 @@ PRIVATE>
 
 : AINAN-USING:
     #! Syntax: AINAN-USING: vocabularies... ;
-    ";" lexer:parse-tokens
-        [ dup parser:use+ qualify ] sequences:each
+    ";" lexer:parse-tokens [ qualify ] sequences:each
 ; parsing
