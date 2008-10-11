@@ -7,85 +7,214 @@ AINAN-USING: arrays math sequences ;
 IN: ainan.ranges
 
 
+! iterator mixin
+
+MIXIN: readable-iterator
+MIXIN: writable-iterator
+MIXIN: swappable-iterator
+MIXIN: read-write-iterator
+INSTANCE: read-write-iterator readable-iterator
+INSTANCE: read-write-iterator writable-iterator
+INSTANCE: read-write-iterator swappable-iterator
+
+MIXIN: single-pass-iterator
+MIXIN: forward-iterator
+MIXIN: bidirectional-iterator
+MIXIN: random-access-iterator
+INSTANCE: forward-iterator single-pass-iterator
+INSTANCE: bidirectional-iterator forward-iterator
+INSTANCE: random-access-iterator bidirectional-iterator
+
+GENERIC: iterator-read ( iter -- elt )
+GENERIC: iterator-write ( elt iter -- )
+GENERIC: iterator-equal? ( iter iter -- ? )
+GENERIC: iterator-increment ( iter -- iter )
+GENERIC: iterator-decrement ( iter -- iter )
+GENERIC: iterator-offset ( n iter -- iter )
+
+
+! adapter-iterator
+
+MIXIN: adapter-iterator
+
+M: adapter-iterator iterator-read base>> iterator-read ;
+M: adapter-iterator iterator-write base>> iterator-write ;
+M: adapter-iterator iterator-equal? [ base>> ] bi@ iterator-equal? ;
+M: adapter-iterator iterator-increment base>> iterator-increment ;
+M: adapter-iterator iterator-decrement base>> iterator-decrement ;
+M: adapter-iterator iterator-offset base>> iterator-offset ;
+
+
+! number-iterator
+
+TUPLE: number-iterator base ;
+C: <number-iterator> number-iterator
+
+M: number-iterator iterator-read base>> ;
+M: number-iterator iterator-equal? [ base>> ] bi@ = ;
+M: number-iterator iterator-increment [ math:1+ ] change-base ;
+M: number-iterator iterator-decrement [ math:1- ] change-base ;
+M: number-iterator iterator-offset swap [ math:+ ] curry change-base ;
+
+INSTACNE: number-iterator readable-iterator
+INSTANCE: number-iterator random-access-iterator
+
+
+! outdirect-iterator
+
+TUPLE: outdirect-iterator base ;
+C: <outdirect-iterator> outdirect-iterator
+
+M: outdirect-iterator iterator-read base>> ;
+
+INSTANCE: outdirect-iterator adapter-iterator
+INSTACNE: outdirect-iterator readable-iterator
+
+
+! counting-iterator
+
+GENERIC: <counting-iterator> ( num-or-iter -- newiter )
+
+M: number-iterator <counting-iterator> <number-iterator>
+M: outdirect-iterator <counting-iterator> <outdirect-iterator>
+
+
+! reverse-iterator
+
+TUPLE: reverse-iterator base ;
+C: <reverse-iterator> reverse-iterator
+
+M: reverse-iterator iterator-increment base>> iterator-decrement ;
+M: reverse-iterator iterator-decrement base>> iterator-increment ;
+M: reverse-iterator iterator-offset swap math:neg swap base>> iterator-offset;
+INSTANCE: reverse-iterator adapter-iterator
+
+
+! transform-iterator
+
+TUPLE: transform-iterator base quot ;
+C: <transform-iterator> transform-iterator
+
+M: transform-iterator iterator-read base>> iterator-read quot call ;
+M: transform-iterator iterator-write immutable ;
+INSTANCE: transform-iterator adapter-iterator
+
+INSTANCE: transform-iterator readable-iterator
+
+
+! sequence-iterator
+
+TUPLE: sequence-iterator base seq ;
+: <sequence-iterator> ( n seq -- newiter ) swap <number-iterator> swap sequence-iterator boa ;
+
+: (sequence-iterator>n-seq) ( iter -- n seq ) dup seq>> swap base>> iterator-read swap ;
+M: sequence-iterator iterator-read (sequence-iterator>seq-n) sequences:nth ;
+M: sequence-iterator iterator-write (sequence-iterator>seq-n) sequences:set-nth ;
+INSTANCE: sequence-iterator adapter-iterator
+
+INSTANCE: sequence-iterator random-access-iterator
+
+
 ! cursor
 
-MIXIN: single-pass-cursor
-MIXIN: forward-cursor
-MIXIN: bidirectional-cursor
-MIXIN: random-access-cursor
+MIXIN: cursor
 
-INSTANCE: forward-cursor single-pass-cursor
-INSTANCE: bidirectional-cursor forward-cursor
-INSTANCE: random-access-cursor bidirectional-cursor
+GENERIC: cursor-key ( cur -- key )
+GENERIC: cursor-equal? ( cur cur -- ? )
+GENERIC: cursor-increment ( cur -- cur )
+GENERIC: cursor-decrement ( cur -- cur )
+GENERIC: cursor-offset ( n cur -- cur )
 
-GENERIC: (cursor@) ( cur -- key )
-GENERIC: (cursor=) ( cur cur -- ? )
-GENERIC: (cursor1+) ( cur -- cur )
-GENERIC: (cursor1-) ( cur -- cur )
-GENERIC: (cursor+) ( n cur -- cur )
-
-: cursor@ ( cur -- key ) (cursor@) ; inline
-: cursor= ( cur cur -- ? ) (cursor=) ; inline
-: cursor1+ ( cur -- cur ) (cursor1+) ; inline
-: cursor1- ( cur -- cur ) (cursor1-) ; inline
-: cursor+ ( n cur -- cur ) (cursor+) ; inline
+M: single-pass-iterator cursor-key ;
+M: single-pass-iterator cursor-equal? iterator-equal? ;
+M: single-pass-iterator cursor-increment iterator-increment ;
+M: bidirectional-iterator cursor-decrement iterator-decrement ;
+M: random-access-iterator cursor-offset iterator-offset ;
 
 
-! reverse-cursor
+! property-map
 
-TUPLE: reverse-cursor { base read-only } ;
-C: <reverse-cursor> reverse-cursor
+MIXIN: property-map
 
-M: reverse-cursor (cursor@) base>> cursor@ ;
-M: reverse-cursor (cursor=) base>> base>> cursor= ;
-M: reverse-cursor (cursor1+) base>> cursor1- ;
-M: reverse-cursor (cursor1-) base>> cursor1+ ;
-M: reverse-cursor (cursor+) swap math:neg swap base>> cursor+;
-
-M: reverse-cursor (>base) base>> ;
-
-INSTANCE: reverse-cursor depends-on-base
+GENERIC: property-map-read ( key pmap -- elt )
+GENERIC: property-map-write ( elt key pmap -- )
 
 
-! counting-cursor
+! property-map-iterator
 
-M: math:number (cursor=) = ;
-M: math:number (cursor1+) math:1+ ;
-M: math:number (cursor1-) math:1- ;
-M: math:number (cursor+) math:+ ;
+TUPLE: property-map-iterator cur pmap ;
+C: <property-map-iterator> property-map-iterator
 
-TUPLE: counting-cursor count ; ! count is either a number or cursor.
-C: <counting-cursor> counting-cursor
+M: property-map-iterator iterator-read dup >>cur cursor-key swap pmap>> property-map-read ;
+M: property-map-iterator iterator-write dup >>cur cursor-map-key swap pmap>> property-map-write ;
+M: property-map-iterator iterator-equal? [ cur>> ] bi@ cursor-equal? ;
+M: property-map-iterator iterator-increment cur>> cursor-increment ;
+M: property-map-iterator iterator-decrement cur>> cursor-decrement;
+M: property-map-iterator iterator-offset cur>> cursor-advance ;
 
-M: counting-cursor (key) count>> ;
-M: counting-cursor (eql?) count>> count>> eql? ;
-M: counting-cursor (inc) count>> inc ;
-M: counting-cursor (dec) count>> dec ;
-M: counting-cursor (adv) count>> adv ;
-
-INSTANCE: counting-cursor depends-on-count
+INSTANCE: property-map-iterator depends-on-base
 
 
-! filter-cursor
+! sequence-property-map
 
-TUPLE: filter-cursor { base read-only } { pmap read-only } ;
-C: <filter-cursor> filter-cursor
+TUPLE: sequence-property-map ;
+C: <sequence-property-map> sequence-property-map
 
-M: filter-cursor (cursor@) base>> cursor@ ;
-M: filter-cursor (cursor=) base>> base>> cursor= ;
-M: filter-cursor (cursor1+) base>> cursor1- ;
-M: filter-cursor (cursor1-) base>> cursor1+ ;
-M: filter-cursor (cursor+) swap math:neg swap base>> cursor+;
+M: sequence-property-map property-map-read sequences:nth ; ! index is key.
+M: sequence-property-map property-map-write sequences:set-nth ;
 
 
-! step-cursor
+TUPLE: sequence-iterator { seq read-only } n ;
+C: <sequence-iterator> sequence-iterator
 
-TUPLE: step-cursor { base read-only } { begin read-only } { end read-only } ;
-C: <step-cursor> step-cursor
+M: sequence-iterator iterator@ dup n>> swap seq>> sequences:nth;
+M: sequence-iterator iterator= [ n>> ] bi@ = ;
+M: sequence-iterator iterator1+ [ math:1+ ] change-n ;
+M: sequence-iterator iterator1- [ math:1- ] change-n ;
+M: sequence-iterator iterator+ swap [ math:+ ] curry change-n ;
 
-M: step-cursor (cursor@) base>> cursor@ ;
-M: step-cursor (cursor=) base>> base>> cursor= ;
-M: step-cursor (cursor1+) base>> cursor1 ;
+INSTANCE: sequence-iterator random-access-iterator
+
+
+! reverse-iterator
+
+TUPLE: reverse-iterator { base read-only } ;
+C: <reverse-iterator> reverse-iterator
+
+M: reverse-iterator iterator@ base>> iterator@ ;
+M: reverse-iterator iterator= base>> swap base>> iterator= ;
+M: reverse-iterator iterator1+ base>> iterator1- ;
+M: reverse-iterator iterator1- base>> iterator1+ ;
+M: reverse-iterator iterator+ swap math:neg swap base>> iterator+;
+
+M: reverse-iterator (>base) base>> ;
+
+INSTANCE: reverse-iterator depends-on-base
+
+
+INSTANCE: counting-iterator depends-on-count
+
+
+! filter-iterator
+
+TUPLE: filter-iterator { base read-only } { pmap read-only } ;
+C: <filter-iterator> filter-iterator
+
+M: filter-iterator (iterator@) base>> iterator@ ;
+M: filter-iterator (iterator=) base>> base>> iterator= ;
+M: filter-iterator (iterator1+) base>> iterator1- ;
+M: filter-iterator (iterator1-) base>> iterator1+ ;
+M: filter-iterator (iterator+) swap math:neg swap base>> iterator+;
+
+
+! step-iterator
+
+TUPLE: step-iterator { base read-only } { begin read-only } { end read-only } ;
+C: <step-iterator> step-iterator
+
+M: step-iterator (iterator@) base>> iterator@ ;
+M: step-iterator (iterator=) base>> base>> iterator= ;
+M: step-iterator (iterator1+) base>> iterator1 ;
 
 
 ! property-map
@@ -149,12 +278,12 @@ M: sequence-property-map (write) sequences:set-nth ;
 
 MIXIN: range
 
-GENERIC: (begin) ( rng -- cur )
-GENERIC: (end) ( rng -- cur )
+GENERIC: (begin) ( rng -- iter )
+GENERIC: (end) ( rng -- iter )
 GENERIC: (pmap) ( rng -- pmap )
 
-: begin ( rng -- cur ) (begin) ; inline
-: end ( rng -- cur ) (end) ; inline
+: begin ( rng -- iter ) (begin) ; inline
+: end ( rng -- iter ) (end) ; inline
 : pmap ( rng -- pmap ) (pmap) ; inline
 
 ! M: range (pmap) <identity-property-map> ;
@@ -162,8 +291,8 @@ GENERIC: (pmap) ( rng -- pmap )
 
 ! sequence range
 
-M: sequences:sequence (begin) 0 <counting-cursor> ;
-M: sequences:sequence (end) sequences:length <counting-cursor> ;
+M: sequences:sequence (begin) 0 <counting-iterator> ;
+M: sequences:sequence (end) sequences:length <counting-iterator> ;
 M: sequences:sequence (pmap) <sequence-property-map> ;
 
 
@@ -191,26 +320,26 @@ INSTANCE: writable-range basic-range
 INSTANCE: read-write-range readable-range
 INSTANCE: read-write-range writable-range
 
-GENERIC: (begin) ( rng -- cur )
-GENERIC: (end) ( rng -- cur )
+GENERIC: (begin) ( rng -- iter )
+GENERIC: (end) ( rng -- iter )
 GENERIC: (read) ( key rng -- elt )
 GENERIC: (write) ( elt key rng -- )
 
-: begin ( rng -- cur ) (begin) ; inline
-: end ( rng -- cur ) (end) ; inline
+: begin ( rng -- iter ) (begin) ; inline
+: end ( rng -- iter ) (end) ; inline
 : read ( key rng -- elt ) (read) ; inline
 : write ( elt key rng -- ) (write) ; inline
 
 : readable-range (write) immutable ;
 
 
-! cursor-range
+! iterator-range
 
-TUPLE: cursor-range begin end ;
-C: <cursor-range> cursor-range
+TUPLE: iterator-range begin end ;
+C: <iterator-range> iterator-range
 
-GENERIC: cursor-range (begin) begin>> ;
-GENERIC: cursor-range (end) end>> ;
+GENERIC: iterator-range (begin) begin>> ;
+GENERIC: iterator-range (end) end>> ;
 
 
 ! base
@@ -227,54 +356,54 @@ M: >immutable (read) rng>> read ;
 M: >immutable (write) immutable ;
 
 
-! counting-cursor
+! counting-iterator
 
 M: math:number (eql?) = ;
 M: math:number (inc) math:1+ ;
 M: math:number (dec) math:1- ;
 M: math:number (adv) math:+ ;
 
-TUPLE: couting-cursor count ; ! count is either a number or cursor.
-C: <couting-cursor> counting-cursor
+TUPLE: couting-iterator count ; ! count is either a number or iterator.
+C: <couting-iterator> counting-iterator
 
-M: couting-cursor (key) count>> ;
-M: couting-cursor (eql?) count>> count>> eql? ;
-M: couting-cursor (inc) count>> inc ;
-M: couting-cursor (dec) count>> dec ;
-M: couting-cursor (adv) count>> adv ;
+M: couting-iterator (key) count>> ;
+M: couting-iterator (eql?) count>> count>> eql? ;
+M: couting-iterator (inc) count>> inc ;
+M: couting-iterator (dec) count>> dec ;
+M: couting-iterator (adv) count>> adv ;
 
-INSTANCE: counting-cursor random-access-cursor
+INSTANCE: counting-iterator random-access-iterator
 
 
 ! counting
 
 TUPLE: counting { from read-only } { to read-only } ;
 
-M: counting (begin) from>> <counting-cursor> ;
-M: counting (end) to>> <counting-cursor> ;
+M: counting (begin) from>> <counting-iterator> ;
+M: counting (end) to>> <counting-iterator> ;
 M: counting (read) drop ;
 M: counting (write) immutable ;
 
-INSTANCE: counting ???-cursor
+INSTANCE: counting ???-iterator
 
 
-! reverse-cursor
+! reverse-iterator
 
-TUPLE: reverse-cursor { base read-only } ;
-C: <reverse-cursor> reverse-cursor
+TUPLE: reverse-iterator { base read-only } ;
+C: <reverse-iterator> reverse-iterator
 
-M: reverse-cursor (key) base>> key ;
-M: reverse-cursor (inc) base>> dec ;
-M: reverse-cursor (dec) base>> inc ;
-M: reverse-cursor (adv) base>> negate adv;
+M: reverse-iterator (key) base>> key ;
+M: reverse-iterator (inc) base>> dec ;
+M: reverse-iterator (dec) base>> inc ;
+M: reverse-iterator (adv) base>> negate adv;
 
-M: reverse-cursor (>base) base>> ;
+M: reverse-iterator (>base) base>> ;
 
 
 ! <reverse-range>
 
 : <reverse-range> ( rng -- rng' )
-    dup begin end [ <reverse-cursor> ] bi@ swap <range> ;
+    dup begin end [ <reverse-iterator> ] bi@ swap <range> ;
 
 
 ! transform-range
@@ -291,20 +420,20 @@ M: transform-range (write) read quot>> call set ;
 M: transform-range (>base) >>base ;
 
 
-! transform-cursor unneeded?
+! transform-iterator unneeded?
 
-TUPLE: transform-cursor base quot ;
+TUPLE: transform-iterator base quot ;
 
-M: transform-cursor (key) count>> ;
-M: transform-cursor (inc) base>> inc quot>> transform-cursor boa ;
-M: transform-cursor (dec) base>> dec quot>> transform-cursor boa ;
-M: transform-cursor (adv) swap base>> adv quot>> transform-cursor boa ;
+M: transform-iterator (key) count>> ;
+M: transform-iterator (inc) base>> inc quot>> transform-iterator boa ;
+M: transform-iterator (dec) base>> dec quot>> transform-iterator boa ;
+M: transform-iterator (adv) swap base>> adv quot>> transform-iterator boa ;
 
 
 ! sequence
 
-M: sequences:sequence (begin) drop 0 <couting-cursor> ; ! index is a key.
-M: sequences:sequence (end) sequences:length <couting-cursor> ;
+M: sequences:sequence (begin) drop 0 <couting-iterator> ; ! index is a key.
+M: sequences:sequence (end) sequences:length <couting-iterator> ;
 M: sequences:sequence (read) sequences:nth
 M: sequences:sequence (write) sequences:set-nth
 

@@ -9,6 +9,11 @@ IN: ainan.learn.tuples
 
 QUALIFIED: accessors ! no effects?
 
+
+: get-name
+    name>> ;
+
+
 TUPLE: employee
     name position slaray ;
 
@@ -20,4 +25,6 @@ TUPLE: employee
 
 : <manager>_ ( name -- person )
     "manager" <person> ;
+
+TUPLE: man name weight ;
 
