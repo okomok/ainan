@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: kernel ainan.using ;
-AINAN-USING: arrays math sequences ;
+AINAN-USING: arrays math sequences sequences.private ;
 
 IN: ainan.ranges
 
@@ -27,10 +27,12 @@ INSTANCE: random-access-iterator bidirectional-iterator
 
 GENERIC: iterator-read ( iter -- elt )
 GENERIC: iterator-write ( elt iter -- )
+GENERIC: iterator-swap ( iter iter -- )
 GENERIC: iterator-equal? ( iter iter -- ? )
 GENERIC: iterator-increment ( iter -- iter )
 GENERIC: iterator-decrement ( iter -- iter )
-GENERIC: iterator-offset ( n iter -- iter )
+GENERIC: iterator-advance ( n iter -- iter )
+GENERIC: iterator-distance ( iter iter -- n )
 
 
 ! adapter-iterator
@@ -39,10 +41,12 @@ MIXIN: adapter-iterator
 
 M: adapter-iterator iterator-read base>> iterator-read ;
 M: adapter-iterator iterator-write base>> iterator-write ;
+M: adapter-iterator iterator-swap [ base>>] bi@ iterator-swap ;
 M: adapter-iterator iterator-equal? [ base>> ] bi@ iterator-equal? ;
 M: adapter-iterator iterator-increment base>> iterator-increment ;
 M: adapter-iterator iterator-decrement base>> iterator-decrement ;
-M: adapter-iterator iterator-offset base>> iterator-offset ;
+M: adapter-iterator iterator-advance base>> iterator-advance ;
+M: adapter-iterator iterator-distance [ base>>] bi@ iterator-distance ;
 
 
 ! number-iterator
@@ -54,9 +58,10 @@ M: number-iterator iterator-read base>> ;
 M: number-iterator iterator-equal? [ base>> ] bi@ = ;
 M: number-iterator iterator-increment [ math:1+ ] change-base ;
 M: number-iterator iterator-decrement [ math:1- ] change-base ;
-M: number-iterator iterator-offset swap [ math:+ ] curry change-base ;
+M: number-iterator iterator-advance swap [ math:+ ] curry change-base ;
+M: number-iterator iterator-distance [ base>> ] bi@ swap math:- ;
 
-INSTACNE: number-iterator readable-iterator
+INSTANCE: number-iterator readable-iterator
 INSTANCE: number-iterator random-access-iterator
 
 
@@ -71,7 +76,11 @@ INSTANCE: outdirect-iterator adapter-iterator
 INSTACNE: outdirect-iterator readable-iterator
 
 
-! counting-iterator
+! x y [q] calld => x q y
+: calld ( x y quot -- ) swapd call swap ;
+
+
+! counting-iterator ! needed?
 
 GENERIC: <counting-iterator> ( num-or-iter -- newiter )
 
@@ -86,33 +95,124 @@ C: <reverse-iterator> reverse-iterator
 
 M: reverse-iterator iterator-increment base>> iterator-decrement ;
 M: reverse-iterator iterator-decrement base>> iterator-increment ;
-M: reverse-iterator iterator-offset swap math:neg swap base>> iterator-offset;
+M: reverse-iterator iterator-advance [ math:neg ] calld base>> iterator-advance ;
+M: reverse-iterator iterator-distance [ base>> ] bi@ swap iterator-distance ;
 INSTANCE: reverse-iterator adapter-iterator
 
 
-! transform-iterator
+! map-iterator
 
-TUPLE: transform-iterator base quot ;
-C: <transform-iterator> transform-iterator
+TUPLE: map-iterator base quot ;
+C: <map-iterator> map-iterator
 
-M: transform-iterator iterator-read base>> iterator-read quot call ;
-M: transform-iterator iterator-write immutable ;
-INSTANCE: transform-iterator adapter-iterator
+M: map-iterator iterator-read base>> iterator-read quot call ;
+M: map-iterator iterator-write immutable ;
+INSTANCE: map-iterator adapter-iterator
 
-INSTANCE: transform-iterator readable-iterator
+INSTANCE: map-iterator readable-iterator
 
 
 ! sequence-iterator
 
 TUPLE: sequence-iterator base seq ;
-: <sequence-iterator> ( n seq -- newiter ) swap <number-iterator> swap sequence-iterator boa ;
+: <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] calld sequence-iterator boa ;
 
-: (sequence-iterator>n-seq) ( iter -- n seq ) dup seq>> swap base>> iterator-read swap ;
-M: sequence-iterator iterator-read (sequence-iterator>seq-n) sequences:nth ;
-M: sequence-iterator iterator-write (sequence-iterator>seq-n) sequences:set-nth ;
+M: sequence-iterator iterator-read dup base>> swap seq>> [ iterator-read ] calld sequences:nth ;
+M: sequence-iterator iterator-write dup base>> swap seq>> [ iterator-read ] calld sequences:set-nth ;
 INSTANCE: sequence-iterator adapter-iterator
 
 INSTANCE: sequence-iterator random-access-iterator
+
+
+! advance
+
+GENERIC: (advance) ( n iter -- iter )
+
+M: single-pass-iterator (advance) [ iterator-increment ] curry math:times ;
+M: random-access-iterator (advance) iterator-advance ;
+
+: advance ( iter n -- iter ) swap (advance) ;
+
+
+! iterator-swap
+
+M: read-write-iterator iterator-swap
+    2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
+
+
+! range mixin
+
+MIXIN: range
+
+GENERIC: begin ( rng -- iter )
+GENERIC: end ( rng -- iter )
+
+
+! iterator-range
+
+TUPLE: iterator-range begin end ;
+C: <iterator-range> iterator-range
+
+M: iterator-range begin begin>> ;
+M: iterator-range end end>> ;
+
+
+! sequence range
+
+M: sequences:sequence begin swap 0 <sequence-iterator> ;
+M: sequences:sequence end dup [ sequences:length ] calld <sequence-iterator> ;
+
+INSTANCE: sequences:sequence range
+
+
+! range sequence
+
+M: range sequences:length dup begin end iterator-distance ;
+M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
+M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
+
+INSTANCE: range sequences:sequence
+
+
+
+! accumulate
+
+: (accumulate)
+
+: accumulate ( rng seed quot -- result ) swap dup begin end quot (accumulate)
+
+
+! distance
+
+GENERIC: (distance) ( begin end -- n )
+
+: (distance-iteration) ( n begin test -- n' begin test )
+
+: single-pass-iterator (distance) ( begin end -- n ) accumulate ... ! 0 dupd [ iterator-equal? not ] 2curry swap [ iterator-increment ] curry [ ??? ] while ;
+: random-access-iterator (distance) ( begin end -- n ) iterator-distance ;
+
+: distance ( rng -- n ) begin end (distance) ;
+
+
+! offset
+
+: offset ( rng -- newrng ) begin end [ swap iter-advance ] bi* ;
+
+
+
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ! cursor
@@ -123,13 +223,13 @@ GENERIC: cursor-key ( cur -- key )
 GENERIC: cursor-equal? ( cur cur -- ? )
 GENERIC: cursor-increment ( cur -- cur )
 GENERIC: cursor-decrement ( cur -- cur )
-GENERIC: cursor-offset ( n cur -- cur )
+GENERIC: cursor-advance ( n cur -- cur )
 
 M: single-pass-iterator cursor-key ;
 M: single-pass-iterator cursor-equal? iterator-equal? ;
 M: single-pass-iterator cursor-increment iterator-increment ;
 M: bidirectional-iterator cursor-decrement iterator-decrement ;
-M: random-access-iterator cursor-offset iterator-offset ;
+M: random-access-iterator cursor-advance iterator-advance ;
 
 
 ! property-map
@@ -150,7 +250,7 @@ M: property-map-iterator iterator-write dup >>cur cursor-map-key swap pmap>> pro
 M: property-map-iterator iterator-equal? [ cur>> ] bi@ cursor-equal? ;
 M: property-map-iterator iterator-increment cur>> cursor-increment ;
 M: property-map-iterator iterator-decrement cur>> cursor-decrement;
-M: property-map-iterator iterator-offset cur>> cursor-advance ;
+M: property-map-iterator iterator-advance cur>> cursor-advance ;
 
 INSTANCE: property-map-iterator depends-on-base
 
@@ -298,8 +398,6 @@ M: sequences:sequence (pmap) <sequence-property-map> ;
 
 ! TUPLE: iterator-range { begin read-only } { end read-only } { pmap initial: <identity-property-map> } ;
 ! C: <iterator-range> iterator-range
-
-
 
 
 
