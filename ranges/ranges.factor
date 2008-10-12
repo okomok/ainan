@@ -1,8 +1,8 @@
 ! Copyright (C) 2008 okomok
 ! See http://factorcode.org/license.txt for BSD license.
 
-USING: kernel ainan.using ;
-AINAN-USING: arrays math sequences sequences.private ;
+USING: kernel ainan.using ainan.calld ;
+AINAN-USING: arrays math quotations sequences sequences.private ;
 
 IN: ainan.ranges
 
@@ -33,6 +33,16 @@ GENERIC: iterator-increment ( iter -- iter )
 GENERIC: iterator-decrement ( iter -- iter )
 GENERIC: iterator-advance ( n iter -- iter )
 GENERIC: iterator-distance ( iter iter -- n )
+
+
+! outputter mixin
+
+MIXIN: outputter
+
+GENERIC: outputter-output ( elt out -- )
+
+M: quotations:callable outputter-output call ; ! is there callable iterator?
+M: writable-iterator outputter-output tuck iterator-write iterator-increment ;
 
 
 ! adapter-iterator
@@ -76,10 +86,6 @@ INSTANCE: outdirect-iterator adapter-iterator
 INSTACNE: outdirect-iterator readable-iterator
 
 
-! x y [q] calld => x q y
-: calld ( x y quot -- ) swapd call swap ;
-
-
 ! counting-iterator ! needed?
 
 GENERIC: <counting-iterator> ( num-or-iter -- newiter )
@@ -95,7 +101,7 @@ C: <reverse-iterator> reverse-iterator
 
 M: reverse-iterator iterator-increment base>> iterator-decrement ;
 M: reverse-iterator iterator-decrement base>> iterator-increment ;
-M: reverse-iterator iterator-advance [ math:neg ] calld base>> iterator-advance ;
+M: reverse-iterator iterator-advance [ math:neg ] ainan-calld base>> iterator-advance ;
 M: reverse-iterator iterator-distance [ base>> ] bi@ swap iterator-distance ;
 INSTANCE: reverse-iterator adapter-iterator
 
@@ -115,10 +121,10 @@ INSTANCE: map-iterator readable-iterator
 ! sequence-iterator
 
 TUPLE: sequence-iterator base seq ;
-: <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] calld sequence-iterator boa ;
+: <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] ainan-calld sequence-iterator boa ;
 
-M: sequence-iterator iterator-read dup base>> swap seq>> [ iterator-read ] calld sequences:nth ;
-M: sequence-iterator iterator-write dup base>> swap seq>> [ iterator-read ] calld sequences:set-nth ;
+M: sequence-iterator iterator-read dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:nth ;
+M: sequence-iterator iterator-write dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:set-nth ;
 INSTANCE: sequence-iterator adapter-iterator
 
 INSTANCE: sequence-iterator random-access-iterator
@@ -143,9 +149,15 @@ M: read-write-iterator iterator-swap
 ! range mixin
 
 MIXIN: range
-
 GENERIC: begin ( rng -- iter )
 GENERIC: end ( rng -- iter )
+
+MIXIN: clonable-range
+INSTANCE: clonable-range range
+GENERIC: clone-range ( from exemplar -- newrng )
+
+M: sequences:sequence clone-range sequences:clone-like ;
+INSTANCE: sequences:sequence clonable-range
 
 
 ! iterator-range
@@ -160,7 +172,7 @@ M: iterator-range end end>> ;
 ! sequence range
 
 M: sequences:sequence begin swap 0 <sequence-iterator> ;
-M: sequences:sequence end dup [ sequences:length ] calld <sequence-iterator> ;
+M: sequences:sequence end dup [ sequences:length ] ainan-calld <sequence-iterator> ;
 
 INSTANCE: sequences:sequence range
 
@@ -174,8 +186,7 @@ M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write 
 INSTANCE: range sequences:sequence
 
 
-
-! accumulate
+! do-accumulate
 
 : (accumulate)
 
