@@ -7,7 +7,7 @@ AINAN-USING: arrays io math quotations sequences sequences.private ;
 IN: ainan.ranges
 
 
-! basic-iterator protocol
+! iterator protocol
 
 MIXIN: iterator
 GENERIC: iterator-traversal-tag ( iter -- tag )
@@ -58,7 +58,6 @@ MIXIN: delegate-iterator
 
 INSTANCE: delegate-iterator iterator
 M: delegate-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
-M: delegate-iterator iterator-tag base>> iterator-tag ;
 M: delegate-iterator iterator-read base>> iterator-read ;
 M: delegate-iterator iterator-write base>> iterator-write ;
 M: delegate-iterator iterator-swap [ base>>] bi@ iterator-swap ;
@@ -152,19 +151,27 @@ INSTANCE: io:stream output
 M: io:stream output-write io:stream-write1 ;
 
 
-! advance
+! iter-advance
 
-GENERIC: (advance) ( n iter -- iter )
+GENERIC: (iter-advance) ( iter n tag -- iter )
+: advance ( iter n -- iter ) over iterator-traversal-tag (advance) ;
 
-M: single-pass-iterator (advance) [ iterator-increment ] curry math:times ;
-M: random-access-iterator (advance) iterator-advance ;
-
-: advance ( iter n -- iter ) swap (advance) ;
+M: single-pass-iterator-tag (iter-advance) drop swap [ iterator-increment ] curry math:times ;
+M: random-access-iterator-tag (iter-advance) drop swap iterator-advance ;
 
 
-! iterator-swap
+! iter-distance
 
-M: read-write-iterator iterator-swap
+GENERIC: (iter-distance) ( begin end tag -- n )
+: iter-distance ( begin end -- n ) dup iterator-traversal-tag (distance) ;
+
+: single-pass-iterator-tag (iter-distance) drop accumulate ... ! 0 dupd [ iterator-equal? not ] 2curry swap [ iterator-increment ] curry [ ??? ] while ;
+: random-access-iterator (iter-distance) drop swap iterator-distance ;
+
+
+! default iterator-swap
+
+M: iterator iterator-swap
     2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
 
 
@@ -211,19 +218,12 @@ M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write 
 
 ! distance
 
-GENERIC: (distance) ( begin end -- n )
-
-: (distance-iteration) ( n begin test -- n' begin test )
-
-: single-pass-iterator (distance) ( begin end -- n ) accumulate ... ! 0 dupd [ iterator-equal? not ] 2curry swap [ iterator-increment ] curry [ ??? ] while ;
-: random-access-iterator (distance) ( begin end -- n ) iterator-distance ;
-
-: distance ( rng -- n ) begin end (distance) ;
+: distance ( rng -- n ) begin end (iter-distance) ;
 
 
 ! offset
 
-: offset ( rng -- newrng ) begin end [ swap iter-advance ] bi* ;
+: offset ( rng n m -- newrng ) begin end [ swap iter-advance ] bi* ;
 
 
 
