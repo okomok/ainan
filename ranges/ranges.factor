@@ -2,50 +2,91 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: kernel ainan.using ainan.calld ;
-AINAN-USING: arrays math quotations sequences sequences.private ;
+AINAN-USING: arrays io math quotations sequences sequences.private ;
 
 IN: ainan.ranges
 
 
-! iterator mixin
+! read, write, swappable mixins are really needed?
+
+! readable-iterator mixin
 
 MIXIN: readable-iterator
+GENERIC: iterator-read ( iter -- elt )
+
+
+! writable-iterator mixin
+
 MIXIN: writable-iterator
+GENERIC: iterator-write ( elt iter -- )
+
+
+! swappable-iterator mixin ! renamed to shuffle iterator? (maybe no.)
+
 MIXIN: swappable-iterator
-MIXIN: read-write-iterator
-INSTANCE: read-write-iterator readable-iterator
-INSTANCE: read-write-iterator writable-iterator
+GENERIC: iterator-swap ( iter iter -- )
+
+INTERSECTION: read-write-iterator readable-iterator writable-iterator
 INSTANCE: read-write-iterator swappable-iterator
 
-MIXIN: single-pass-iterator
-MIXIN: forward-iterator
-MIXIN: bidirectional-iterator
-MIXIN: random-access-iterator
-INSTANCE: forward-iterator single-pass-iterator
-INSTANCE: bidirectional-iterator forward-iterator
-INSTANCE: random-access-iterator bidirectional-iterator
 
-GENERIC: iterator-read ( iter -- elt )
-GENERIC: iterator-write ( elt iter -- )
-GENERIC: iterator-swap ( iter iter -- )
+! single-pass-iterator mixin
+
+MIXIN: single-pass-iterator
 GENERIC: iterator-equal? ( iter iter -- ? )
 GENERIC: iterator-increment ( iter -- iter )
+
+
+! input-iterator mixin
+
+MIXIN: input-iterator
+GENERIC: iterator-read ( iter -- elt )
+GENERIC: iterator-write ( elt iter -- ) ! optional
+GENERIC: iterator-equal? ( iter iter -- ? )
+GENERIC: iterator-increment ( iter -- iter )
+
+
+! forward-iterator mixin
+
+MIXIN: forward-iterator
+INSTANCE: forward-iterator single-pass-iterator
+
+
+! bidirectional-iterator mixin
+
+MIXIN: bidirectional-iterator
+INSTANCE: bidirectional-iterator forward-iterator
 GENERIC: iterator-decrement ( iter -- iter )
+
+
+! random-access-iterator mixin
+
+MIXIN: random-access-iterator
+INSTANCE: random-access-iterator bidirectional-iterator
 GENERIC: iterator-advance ( n iter -- iter )
 GENERIC: iterator-distance ( iter iter -- n )
 
 
-! outputter mixin
+! output-iterator mixin
 
-MIXIN: outputter
-
-GENERIC: outputter-output ( elt out -- )
-
-M: quotations:callable outputter-output call ; ! is there callable iterator?
-M: writable-iterator outputter-output tuck iterator-write iterator-increment ;
+MIXIN: output-iterator
+GENERIC: iterator-output ( elt out -- )
 
 
-! adapter-iterator
+! output-iterator instances
+
+INSTANCE: quotations:callable output-iterator
+M: quotations:callable iterator-output call ; ! is there callable iterator?
+
+INTERSECTION: writable-single-pass-iterator writable-iterator single-pass-iterator ;
+INSTANCE: writable-single-pass-iterator output-iterator
+M: writable-single-pass-iterator iterator-output tuck iterator-write iterator-increment ;
+
+INSTANCE: io:stream output-iterator
+M: io:stream iterator-output io:stream-write1 ;
+
+
+! adapter-iterator mixin
 
 MIXIN: adapter-iterator
 
@@ -57,6 +98,8 @@ M: adapter-iterator iterator-increment base>> iterator-increment ;
 M: adapter-iterator iterator-decrement base>> iterator-decrement ;
 M: adapter-iterator iterator-advance base>> iterator-advance ;
 M: adapter-iterator iterator-distance [ base>>] bi@ iterator-distance ;
+
+PREDICATE: single-pass-adapter-iterator < single-pass-iterator base>> single-pass-iterator classes:instance?
 
 
 ! number-iterator
@@ -81,17 +124,18 @@ TUPLE: outdirect-iterator base ;
 C: <outdirect-iterator> outdirect-iterator
 
 M: outdirect-iterator iterator-read base>> ;
-
 INSTANCE: outdirect-iterator adapter-iterator
-INSTACNE: outdirect-iterator readable-iterator
+
+INSTANCE: outdirect-iterator readable-iterator
+INSTANCE: outdirect-iterator depends-on-base
 
 
 ! counting-iterator ! needed?
 
-GENERIC: <counting-iterator> ( num-or-iter -- newiter )
+GENERIC: counting-iterator> ( num-or-iter -- iter )
 
-M: number-iterator <counting-iterator> <number-iterator>
-M: outdirect-iterator <counting-iterator> <outdirect-iterator>
+M: number-iterator counting-iterator> <number-iterator>
+M: outdirect-iterator counting-iterator> <outdirect-iterator>
 
 
 ! reverse-iterator
@@ -104,6 +148,9 @@ M: reverse-iterator iterator-decrement base>> iterator-increment ;
 M: reverse-iterator iterator-advance [ math:neg ] ainan-calld base>> iterator-advance ;
 M: reverse-iterator iterator-distance [ base>> ] bi@ swap iterator-distance ;
 INSTANCE: reverse-iterator adapter-iterator
+
+INSTANCE: reverse-iterator bidirectional-iterator
+INSTANCE: reverse-iterator random-access-iterator
 
 
 ! map-iterator
