@@ -7,80 +7,58 @@ AINAN-USING: arrays io math quotations sequences sequences.private ;
 IN: ainan.ranges
 
 
+! basic protocol
 
-! hmm, mixin seems useless.
+GENERIC: iterator-value-access-tag ( iter -- tag ) ! unneeded?
+GENERIC: iterator-traversal-tag ( iter -- tag )
 
 
-! read, write, swappable mixins are really needed?
+! value-access protocol
 
-
-! readable-iterator mixin
-
-MIXIN: readable-iterator
 GENERIC: iterator-read ( iter -- elt )
-
-
-! writable-iterator mixin
-
-MIXIN: writable-iterator
 GENERIC: iterator-write ( elt iter -- )
-
-
-! swappable-iterator mixin (maybe unneeded.)
-
-MIXIN: swappable-iterator
 GENERIC: iterator-swap ( iter iter -- )
 
-INTERSECTION: read-write-iterator readable-iterator writable-iterator
-INSTANCE: read-write-iterator swappable-iterator
+
+! traversal protocol
+
+GENERIC: iterator-equal? ( iter iter -- ? )
+GENERIC: iterator-increment ( iter -- iter )
+GENERIC: iterator-decrement ( iter -- iter )
+GENERIC: iterator-advance ( n iter -- iter )
+GENERIC: iterator-distance ( iter iter -- n )
+
+
+! output-iterator protocol
+
+GENERIC: iterator-output ( elt out -- )
+
+
+! iterator value-access tags
+
+TUPLE: readable-iterator-tag ;
+TUPLE: writable-iteartor-tag ;
+TUPLE: swappable-iterator-tag ;
+C: <readable-iterator-tag> readable-iterator-tag
+C: <writable-iterator-tag> writable-iterator-tag
+C: <swappable-iterator-tag> swappable-iterator-tag
 
 
 ! iterator traversal tags
 
-GENERIC: iterator-traversal-tag ( iter -- tag )
-
-SINGLETON: single-pass-iterator-tag
-SINGLETON: forward-iterator-tag
-SINGLETON: bidirectional-iterator-tag
-SINGLETON: random-access-iterator-tag
-
-
-! single-pass-iterator mixin
-
-MIXIN: single-pass-iterator
-GENERIC: iterator-equal? ( iter iter -- ? )
-GENERIC: iterator-increment ( iter -- iter )
-M: single-pass-iterator iterator-traversal-tag single-pass-iterator-tag
+TUPLE: single-pass-iterator-tag ;
+TUPLE: forward-iterator-tag < single-pass-itarator-tag ;
+TUPLE: bidirectional-iterator-tag < forward-iterator-tag ;
+TUPLE: random-access-iterator-tag < bidirectional-iterator-tag ;
+C: <single-pass-iterator-tag> single-pass-iterator-tag
+C: <forward-iterator-tag> forward-iterator-tag
+C: <bidirectional-iterator-tag> bidirectional-iterator-tag
+C: <random-access-iterator-tag> random-access-pass-iterator-tag
 
 
-! forward-iterator mixin
+! minimum-traversal-tag
 
-MIXIN: forward-iterator
-INSTANCE: forward-iterator input-iterator
-M: forward-iterator iterator-traversal-tag forward-iterator-tag
-
-
-! bidirectional-iterator mixin
-
-MIXIN: bidirectional-iterator
-INSTANCE: bidirectional-iterator forward-iterator
-GENERIC: iterator-decrement ( iter -- iter )
-M: bidirectional-iterator iterator-traversal-tag bidirectional-iterator-tag
-
-
-! random-access-iterator mixin
-
-MIXIN: random-access-iterator
-INSTANCE: random-access-iterator bidirectional-iterator
-GENERIC: iterator-advance ( n iter -- iter )
-GENERIC: iterator-distance ( iter iter -- n )
-M: random-access-iterator iterator-traversal-tag random-access-iterator-tag
-
-
-! output-iterator mixin
-
-MIXIN: output-iterator
-GENERIC: iterator-output ( elt out -- )
+: minimum-traversal-tag ( tag tag -- tag ) ... ;
 
 
 ! output-iterator instances
@@ -96,20 +74,20 @@ INSTANCE: io:stream output-iterator
 M: io:stream iterator-output io:stream-write1 ;
 
 
-! adapter-iterator mixin
+! delegate-iterator mixin
 
-MIXIN: adapter-iterator
+MIXIN: delegate-iterator
 
-M: adapter-iterator iterator-tag base>> iterator-tag ;
-M: adapter-iterator iterator-read base>> iterator-read ;
-M: adapter-iterator iterator-write base>> iterator-write ;
-M: adapter-iterator iterator-swap [ base>>] bi@ iterator-swap ;
-M: adapter-iterator iterator-equal? [ base>> ] bi@ iterator-equal? ;
-M: adapter-iterator iterator-increment base>> iterator-increment ;
-M: adapter-iterator iterator-decrement base>> iterator-decrement ;
-M: adapter-iterator iterator-advance base>> iterator-advance ;
-M: adapter-iterator iterator-distance [ base>>] bi@ iterator-distance ;
-M: adapter-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
+M: delegate-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
+M: delegate-iterator iterator-tag base>> iterator-tag ;
+M: delegate-iterator iterator-read base>> iterator-read ;
+M: delegate-iterator iterator-write base>> iterator-write ;
+M: delegate-iterator iterator-swap [ base>>] bi@ iterator-swap ;
+M: delegate-iterator iterator-equal? [ base>> ] bi@ iterator-equal? ;
+M: delegate-iterator iterator-increment base>> iterator-increment ;
+M: delegate-iterator iterator-decrement base>> iterator-decrement ;
+M: delegate-iterator iterator-advance base>> iterator-advance ;
+M: delegate-iterator iterator-distance [ base>>] bi@ iterator-distance ;
 
 
 ! number-iterator
@@ -117,6 +95,7 @@ M: adapter-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
 TUPLE: number-iterator base ;
 C: <number-iterator> number-iterator
 
+M: number-iterator iterator-traversal-tag <random-access-iterator-tag> ;
 M: number-iterator iterator-read base>> ;
 M: number-iterator iterator-equal? [ base>> ] bi@ = ;
 M: number-iterator iterator-increment [ math:1+ ] change-base ;
@@ -124,23 +103,17 @@ M: number-iterator iterator-decrement [ math:1- ] change-base ;
 M: number-iterator iterator-advance swap [ math:+ ] curry change-base ;
 M: number-iterator iterator-distance [ base>> ] bi@ swap math:- ;
 
-INSTANCE: number-iterator readable-iterator
-INSTANCE: number-iterator random-access-iterator
-
 
 ! outdirect-iterator
 
 TUPLE: outdirect-iterator base ;
 C: <outdirect-iterator> outdirect-iterator
 
+INSTANCE: outdirect-iterator delegate-iterator
 M: outdirect-iterator iterator-read base>> ;
-INSTANCE: outdirect-iterator adapter-iterator
-
-INSTANCE: outdirect-iterator readable-iterator
-INSTANCE: outdirect-iterator depends-on-base
 
 
-! counting-iterator ! needed?
+! counting-iterator ! unneeded?
 
 GENERIC: counting-iterator> ( num-or-iter -- iter )
 
@@ -153,14 +126,11 @@ M: outdirect-iterator counting-iterator> <outdirect-iterator>
 TUPLE: reverse-iterator base ;
 C: <reverse-iterator> reverse-iterator
 
+INSTANCE: reverse-iterator delegate-iterator
 M: reverse-iterator iterator-increment base>> iterator-decrement ;
 M: reverse-iterator iterator-decrement base>> iterator-increment ;
 M: reverse-iterator iterator-advance [ math:neg ] ainan-calld base>> iterator-advance ;
 M: reverse-iterator iterator-distance [ base>> ] bi@ swap iterator-distance ;
-INSTANCE: reverse-iterator adapter-iterator
-
-INSTANCE: reverse-iterator bidirectional-iterator
-INSTANCE: reverse-iterator random-access-iterator if base is so.
 
 
 ! map-iterator
@@ -168,9 +138,9 @@ INSTANCE: reverse-iterator random-access-iterator if base is so.
 TUPLE: map-iterator base quot ;
 C: <map-iterator> map-iterator
 
+INSTANCE: map-iterator delegate-iterator
 M: map-iterator iterator-read base>> iterator-read quot call ;
 M: map-iterator iterator-write immutable ;
-INSTANCE: map-iterator adapter-iterator
 
 INSTANCE: map-iterator readable-iterator
 
@@ -180,9 +150,10 @@ INSTANCE: map-iterator readable-iterator
 TUPLE: sequence-iterator base seq ;
 : <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] ainan-calld sequence-iterator boa ;
 
+M: sequence-iterator iterator-traversal-tag <random-access-iterator-tag> ;
 M: sequence-iterator iterator-read dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:nth ;
 M: sequence-iterator iterator-write dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:set-nth ;
-INSTANCE: sequence-iterator adapter-iterator
+INSTANCE: sequence-iterator delegate-iterator
 
 INSTANCE: sequence-iterator random-access-iterator
 
@@ -208,13 +179,7 @@ M: read-write-iterator iterator-swap
 MIXIN: range
 GENERIC: begin ( rng -- iter )
 GENERIC: end ( rng -- iter )
-
-MIXIN: clonable-range
-INSTANCE: clonable-range range
-GENERIC: clone-range ( from exemplar -- newrng )
-
-M: sequences:sequence clone-range sequences:clone-like ;
-INSTANCE: sequences:sequence clonable-range
+GENERIC: construct ( from exemplar -- newrng ) ! optional
 
 
 ! iterator-range
@@ -222,25 +187,26 @@ INSTANCE: sequences:sequence clonable-range
 TUPLE: iterator-range begin end ;
 C: <iterator-range> iterator-range
 
+INSTANCE: iterator-range range
 M: iterator-range begin begin>> ;
 M: iterator-range end end>> ;
 
 
 ! sequence range
 
+INSTANCE: sequences:sequence range
 M: sequences:sequence begin swap 0 <sequence-iterator> ;
 M: sequences:sequence end dup [ sequences:length ] ainan-calld <sequence-iterator> ;
-
-INSTANCE: sequences:sequence range
+M: sequences:sequence construct sequences:clone-like ;
 
 
 ! range sequence
 
+INSTANCE: range sequences:sequence
 M: range sequences:length dup begin end iterator-distance ;
 M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
 
-INSTANCE: range sequences:sequence
 
 
 ! do-accumulate
