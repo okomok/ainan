@@ -7,9 +7,9 @@ AINAN-USING: arrays io math quotations sequences sequences.private ;
 IN: ainan.ranges
 
 
-! basic protocol
+! basic-iterator protocol
 
-GENERIC: iterator-value-access-tag ( iter -- tag ) ! unneeded?
+MIXIN: iterator
 GENERIC: iterator-traversal-tag ( iter -- tag )
 
 
@@ -29,19 +29,10 @@ GENERIC: iterator-advance ( n iter -- iter )
 GENERIC: iterator-distance ( iter iter -- n )
 
 
-! output-iterator protocol
+! output protocol
 
-GENERIC: iterator-output ( elt out -- )
-
-
-! iterator value-access tags
-
-TUPLE: readable-iterator-tag ;
-TUPLE: writable-iteartor-tag ;
-TUPLE: swappable-iterator-tag ;
-C: <readable-iterator-tag> readable-iterator-tag
-C: <writable-iterator-tag> writable-iterator-tag
-C: <swappable-iterator-tag> swappable-iterator-tag
+MIXIN: output-write
+GENERIC: output-write ( elt out -- )
 
 
 ! iterator traversal tags
@@ -61,23 +52,11 @@ C: <random-access-iterator-tag> random-access-pass-iterator-tag
 : minimum-traversal-tag ( tag tag -- tag ) ... ;
 
 
-! output-iterator instances
-
-INSTANCE: quotations:callable output-iterator
-M: quotations:callable iterator-output call ; ! is there callable iterator?
-
-INTERSECTION: writable-single-pass-iterator writable-iterator single-pass-iterator ;
-INSTANCE: writable-single-pass-iterator output-iterator
-M: writable-single-pass-iterator iterator-output tuck iterator-write iterator-increment ;
-
-INSTANCE: io:stream output-iterator
-M: io:stream iterator-output io:stream-write1 ;
-
-
 ! delegate-iterator mixin
 
 MIXIN: delegate-iterator
 
+INSTANCE: delegate-iterator iterator
 M: delegate-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
 M: delegate-iterator iterator-tag base>> iterator-tag ;
 M: delegate-iterator iterator-read base>> iterator-read ;
@@ -95,6 +74,7 @@ M: delegate-iterator iterator-distance [ base>>] bi@ iterator-distance ;
 TUPLE: number-iterator base ;
 C: <number-iterator> number-iterator
 
+INSTANCE: number-iterator iterator
 M: number-iterator iterator-traversal-tag <random-access-iterator-tag> ;
 M: number-iterator iterator-read base>> ;
 M: number-iterator iterator-equal? [ base>> ] bi@ = ;
@@ -142,20 +122,34 @@ INSTANCE: map-iterator delegate-iterator
 M: map-iterator iterator-read base>> iterator-read quot call ;
 M: map-iterator iterator-write immutable ;
 
-INSTANCE: map-iterator readable-iterator
-
 
 ! sequence-iterator
 
 TUPLE: sequence-iterator base seq ;
 : <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] ainan-calld sequence-iterator boa ;
 
+INSTANCE: sequence-iterator delegate-iterator
 M: sequence-iterator iterator-traversal-tag <random-access-iterator-tag> ;
 M: sequence-iterator iterator-read dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:nth ;
 M: sequence-iterator iterator-write dup base>> swap seq>> [ iterator-read ] ainan-calld sequences:set-nth ;
-INSTANCE: sequence-iterator delegate-iterator
 
-INSTANCE: sequence-iterator random-access-iterator
+
+! iterator output
+
+INSTANCE: iterator output
+M: iterator output-write tuck iterator-write iterator-increment ;
+
+
+! callable output
+
+INSTANCE: quotations:callable output
+M: quotations:callable output-write call ; ! is there callable iterator?
+
+
+! stream output
+
+INSTANCE: io:stream output
+M: io:stream output-write io:stream-write1 ;
 
 
 ! advance
@@ -206,7 +200,6 @@ INSTANCE: range sequences:sequence
 M: range sequences:length dup begin end iterator-distance ;
 M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
-
 
 
 ! do-accumulate
