@@ -151,10 +151,17 @@ INSTANCE: io:stream output
 M: io:stream output-write io:stream-write1 ;
 
 
+! iter-swap
+
+: iter-swap ( iter iter -- ) (iterator-swap) ;
+
+M: iterator (iterator-swap) 2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
+
+
 ! iter-advance
 
 GENERIC: (iter-advance) ( iter n tag -- iter )
-: advance ( iter n -- iter ) over iterator-traversal-tag (advance) ;
+: advance ( iter n -- iter ) over iterator-traversal-tag (iter-advance) ;
 
 M: single-pass-iterator-tag (iter-advance) drop swap [ iterator-increment ] curry math:times ;
 M: random-access-iterator-tag (iter-advance) drop swap iterator-advance ;
@@ -163,16 +170,10 @@ M: random-access-iterator-tag (iter-advance) drop swap iterator-advance ;
 ! iter-distance
 
 GENERIC: (iter-distance) ( begin end tag -- n )
-: iter-distance ( begin end -- n ) dup iterator-traversal-tag (distance) ;
+: iter-distance ( begin end -- n ) dup iterator-traversal-tag (iter-distance) ;
 
 : single-pass-iterator-tag (iter-distance) drop accumulate ... ! 0 dupd [ iterator-equal? not ] 2curry swap [ iterator-increment ] curry [ ??? ] while ;
 : random-access-iterator (iter-distance) drop swap iterator-distance ;
-
-
-! default iterator-swap
-
-M: iterator iterator-swap
-    2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
 
 
 ! range mixin
@@ -180,17 +181,17 @@ M: iterator iterator-swap
 MIXIN: range
 GENERIC: begin ( rng -- iter )
 GENERIC: end ( rng -- iter )
-GENERIC: construct ( from exemplar -- newrng ) ! optional
+GENERIC: clone ( from exemplar -- newrng ) ! optional
 
 
-! iterator-range
+! iter-range
 
-TUPLE: iterator-range begin end ;
-C: <iterator-range> iterator-range
+TUPLE: iter-range begin end ;
+C: <iter-range> iter-range
 
-INSTANCE: iterator-range range
-M: iterator-range begin begin>> ;
-M: iterator-range end end>> ;
+INSTANCE: iter-range range
+M: iter-range begin begin>> ;
+M: iter-range end end>> ;
 
 
 ! sequence range
@@ -198,7 +199,7 @@ M: iterator-range end end>> ;
 INSTANCE: sequences:sequence range
 M: sequences:sequence begin swap 0 <sequence-iterator> ;
 M: sequences:sequence end dup [ sequences:length ] ainan-calld <sequence-iterator> ;
-M: sequences:sequence construct sequences:clone-like ;
+M: sequences:sequence clone sequences:clone-like ;
 
 
 ! range sequence
