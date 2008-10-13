@@ -7,7 +7,12 @@ AINAN-USING: arrays io math quotations sequences sequences.private ;
 IN: ainan.ranges
 
 
+
+! hmm, mixin seems useless.
+
+
 ! read, write, swappable mixins are really needed?
+
 
 ! readable-iterator mixin
 
@@ -21,7 +26,7 @@ MIXIN: writable-iterator
 GENERIC: iterator-write ( elt iter -- )
 
 
-! swappable-iterator mixin ! renamed to shuffle iterator? (maybe no.)
+! swappable-iterator mixin (maybe unneeded.)
 
 MIXIN: swappable-iterator
 GENERIC: iterator-swap ( iter iter -- )
@@ -30,26 +35,29 @@ INTERSECTION: read-write-iterator readable-iterator writable-iterator
 INSTANCE: read-write-iterator swappable-iterator
 
 
+! iterator traversal tags
+
+GENERIC: iterator-traversal-tag ( iter -- tag )
+
+SINGLETON: single-pass-iterator-tag
+SINGLETON: forward-iterator-tag
+SINGLETON: bidirectional-iterator-tag
+SINGLETON: random-access-iterator-tag
+
+
 ! single-pass-iterator mixin
 
 MIXIN: single-pass-iterator
 GENERIC: iterator-equal? ( iter iter -- ? )
 GENERIC: iterator-increment ( iter -- iter )
-
-
-! input-iterator mixin
-
-MIXIN: input-iterator
-GENERIC: iterator-read ( iter -- elt )
-GENERIC: iterator-write ( elt iter -- ) ! optional
-GENERIC: iterator-equal? ( iter iter -- ? )
-GENERIC: iterator-increment ( iter -- iter )
+M: single-pass-iterator iterator-traversal-tag single-pass-iterator-tag
 
 
 ! forward-iterator mixin
 
 MIXIN: forward-iterator
-INSTANCE: forward-iterator single-pass-iterator
+INSTANCE: forward-iterator input-iterator
+M: forward-iterator iterator-traversal-tag forward-iterator-tag
 
 
 ! bidirectional-iterator mixin
@@ -57,6 +65,7 @@ INSTANCE: forward-iterator single-pass-iterator
 MIXIN: bidirectional-iterator
 INSTANCE: bidirectional-iterator forward-iterator
 GENERIC: iterator-decrement ( iter -- iter )
+M: bidirectional-iterator iterator-traversal-tag bidirectional-iterator-tag
 
 
 ! random-access-iterator mixin
@@ -65,6 +74,7 @@ MIXIN: random-access-iterator
 INSTANCE: random-access-iterator bidirectional-iterator
 GENERIC: iterator-advance ( n iter -- iter )
 GENERIC: iterator-distance ( iter iter -- n )
+M: random-access-iterator iterator-traversal-tag random-access-iterator-tag
 
 
 ! output-iterator mixin
@@ -90,6 +100,7 @@ M: io:stream iterator-output io:stream-write1 ;
 
 MIXIN: adapter-iterator
 
+M: adapter-iterator iterator-tag base>> iterator-tag ;
 M: adapter-iterator iterator-read base>> iterator-read ;
 M: adapter-iterator iterator-write base>> iterator-write ;
 M: adapter-iterator iterator-swap [ base>>] bi@ iterator-swap ;
@@ -98,8 +109,7 @@ M: adapter-iterator iterator-increment base>> iterator-increment ;
 M: adapter-iterator iterator-decrement base>> iterator-decrement ;
 M: adapter-iterator iterator-advance base>> iterator-advance ;
 M: adapter-iterator iterator-distance [ base>>] bi@ iterator-distance ;
-
-PREDICATE: single-pass-adapter-iterator < single-pass-iterator base>> single-pass-iterator classes:instance?
+M: adapter-iterator iterator-traversal-tag base>> iterator-traversal-tag ;
 
 
 ! number-iterator
@@ -150,7 +160,7 @@ M: reverse-iterator iterator-distance [ base>> ] bi@ swap iterator-distance ;
 INSTANCE: reverse-iterator adapter-iterator
 
 INSTANCE: reverse-iterator bidirectional-iterator
-INSTANCE: reverse-iterator random-access-iterator
+INSTANCE: reverse-iterator random-access-iterator if base is so.
 
 
 ! map-iterator
