@@ -107,9 +107,9 @@ M: delegate-iterator iterator-read* base>> iterator-read ;
 M: delegate-iterator iterator-write* base>> iterator-write ;
 M: delegate-iterator iterator-swap* [ base>> ] bi@ iterator-swap ;
 M: delegate-iterator iterator-equal?* [ base>> ] bi@ iterator-equal? ;
-M: delegate-iterator iterator-increment* dup base>> iterator-increment drop ;
-M: delegate-iterator iterator-decrement* dup base>> iterator-decrement drop ;
-M: delegate-iterator iterator-advance* tuck base>> iterator-advance drop ;
+M: delegate-iterator iterator-increment* [ iterator-increment ] change-base ; ! dup base>> iterator-increment drop ;
+M: delegate-iterator iterator-decrement* [ iterator-decrement ] change-base ; ! dup base>> iterator-decrement drop ;
+M: delegate-iterator iterator-advance* [ iterator-advance ] with change-base ; ! tuck base>> iterator-advance drop ;
 M: delegate-iterator iterator-difference* [ base>> ] bi@ iterator-difference ;
 
 
@@ -207,36 +207,31 @@ GENERIC: copy-range* ( from exemplar -- newrng ) ! optional
     [ begin ] [ end ] bi ; inline
 
 
-! irange
+! accum-range
 
 TUPLE: accum-range begin end ;
-: accum-range ( irng -- rng ) begin-end accum-range boa ;
-: accum-next ( irng -- rng ) [ iterator-increment ] change-begin ;
-: accum-end? ( irng -- ? ) [ begin>> ] [ end>> ] bi iterator-equal? ;
+: <accum-range> ( arng -- rng ) begin-end accum-range boa ;
+: accum-elt ( arng -- elt ) begin>> iterator-read ;
+: accum-next ( arng -- arng ) [ iterator-increment ] change-begin ;
+: accum-end? ( arng -- ? ) [ begin>> ] [ end>> ] bi iterator-equal? ;
 
 
-! for-each
+! for-each ( SEE: lists:leach )
 
-: ((iter-for-each)) ( iter quot -- iter quot )
-    [ [ iterator-read ] dip call ] [ [ iterator-increment ] dip ] 2bi ; inline
+: ((for-each)) ( arng quot -- arng quot )
+    [ [ accum-elt ] dip call ] [ [ accum-next ] dip ] 2bi ; inline
 
-: (iter-for-each) ( end begin quot -- )
-    2over iterator-equal? [ 3drop ] [ ((iter-for-each)) (iter-for-each) ] if ; inline
-
-: iter-for-each ( begin end quot -- )
-    swapd (iter-for-each) ; inline
+: (for-each) ( arng quot -- )
+    over accum-end? [ 2drop ] [ ((for-each)) (for-each) ] if ; inline
 
 : for-each ( rng quot -- )
-    [ begin-end ] dip iter-for-each ; inline
+    [ <accum-range> ] dip (for-each) ; inline
 
 
-! accumulate
-
-: iter-accumulate ( begin end identity quot -- final )
-    [ -rot ] dip iter-for-each ; inline
+! accumulate ( SEE: lists:foldl )
 
 : accumulate ( rng identity quot -- )
-    [ begin-end ] 2slip ; inline
+    swapd for-each ; inline
 
 
 ! iter-advance
