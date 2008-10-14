@@ -195,10 +195,10 @@ M: quotations:callable output-write* call ;
 MIXIN: range
 GENERIC: begin* ( rng -- iter )
 GENERIC: end* ( rng -- iter )
-GENERIC: clone* ( from exemplar -- newrng ) ! optional
+GENERIC: copy-range* ( from exemplar -- newrng ) ! optional
 : begin begin* ; inline
 : end end* ; inline
-: clone clone* ; inline
+: copy-range copy-range* ; inline
 
 
 ! begin-end
@@ -292,7 +292,7 @@ M: iter-range end* end>> ;
 INSTANCE: sequences:sequence range
 M: sequences:sequence begin* 0 swap <sequence-iterator> ;
 M: sequences:sequence end* dup [ sequences:length ] dip <sequence-iterator> ;
-M: sequences:sequence clone* sequences:clone-like ;
+M: sequences:sequence copy-range* sequences:clone-like ;
 
 
 ! random-access-range sequence
