@@ -171,8 +171,9 @@ M: quotations:callable output-write* call ;
 
 ! stream output
 
-! INSTANCE: io:stream output
+! INSTANCE: io:stream output ! io:stream mixin is missing.
 ! M: io:stream output-write* io:stream-write1 ;
+: stream-output ( stm -- out ) [ io:stream-write1 ] curry ;
 
 
 ! range mixin
@@ -230,18 +231,18 @@ M: random-access-iterator-tag (iter-advance) drop swap iterator-advance ;
 GENERIC: (iter-distance) ( begin end tag -- n )
 : iter-distance ( begin end -- n ) dup iterator-traversal-tag (iter-distance) ; inline
 
-: single-pass-iterator-tag (iter-distance) drop 0 [ drop 1 math:+ ] accumulate ;
-: random-access-iterator (iter-distance) drop swap iterator-difference ;
+M: single-pass-iterator-tag (iter-distance) drop 0 [ drop 1 math:+ ] accumulate ;
+M: random-access-iterator-tag (iter-distance) drop swap iterator-difference ;
 
 
 ! distance
 
-: distance ( rng -- n ) begin-end iter-distance ;
+: distance ( rng -- n ) begin-end iter-distance ; inline
 
 
 ! empty?
 
-: empty? ( rng -- ? ) begin-end iterator-equal? ;
+: empty? ( rng -- ? ) begin-end iterator-equal? ; inline
 
 
 ! iter-range
@@ -257,20 +258,19 @@ M: iter-range end* end>> ;
 ! map
 
 : map ( rng quot -- rng )
-    [ begin-end ] dip ! rng begin-end [quot] -> begin end [quot]
-    [ <map-iterator> ] curry ! begin end [ [quot] <map-iterator> ]
-     bi@ <iter-range> ! begin [quot] <map-iterator> end [quot] <map-iterator> <iter-range>
-      ;
+    [ begin-end ] dip [ <map-iterator> ] curry bi@ <iter-range> ;
 
 
 ! numbers
 
-: numbers ( n m -- rng ) [ <number-iterator> ] bi@ <iter-range> ;
+: numbers ( n m -- rng )
+    [ <number-iterator> ] bi@ <iter-range> ;
 
 
 ! offset
 
-: offset ( rng n m -- rng ) [ begin-end ] 2slip [ swap iter-advance ] bi* <iter-range> ;
+: offset ( rng n m -- rng )
+    [ begin-end ] 2slip [ swap iter-advance ] bi* <iter-range> ;
 
 
 ! sequence random-access-range
@@ -280,16 +280,24 @@ M: sequences:sequence begin* 0 swap <sequence-iterator> ;
 M: sequences:sequence end* dup [ sequences:length ] dip <sequence-iterator> ;
 M: sequences:sequence clone* sequences:clone-like ;
 
+
 ! random-access-range sequence
 
 ! Hmm, seems to result in cyclic recursion.
 ! INSTANCE: range sequences:sequence
-! M: range sequences:length begin-end iterator-difference ;
+! M: range sequences:length begin-end swap iterator-difference ;
 ! M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 ! M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
-TUPLE: wrapper rng ; ! or?? : range>seq ( rng -- newseq ) ;
 
+! also cyclic recursion.
+TUPLE: as-seq { rng read-only } ;
+C: <as-seq> as-seq
+INSTANCE: as-seq sequences:sequence
+M: as-seq sequences:length drop ; ! rng>> begin-end swap iterator-difference ;
+M: as-seq sequences.private:nth-unsafe drop ; ! rng>> begin iterator-advance iterator-read ;
+M: as-seq sequences.private:set-nth-unsafe drop drop ; ! rng>> begin iterator-advance iterator-write ;
+! M: as-seq clone ;
 
-
+: range>seq ( rng -- newseq ) ;
 
 
