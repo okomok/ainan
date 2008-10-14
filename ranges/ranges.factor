@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: kernel accessors ainan.using ;
-AINAN-USING: arrays io math quotations sequences sequences.private ;
+AINAN-USING: arrays io math quotations sequences sequences.private vectors ;
 
 IN: ainan.ranges
 
@@ -207,6 +207,14 @@ GENERIC: copy-range* ( from exemplar -- newrng ) ! optional
     [ begin ] [ end ] bi ; inline
 
 
+! irange
+
+TUPLE: accum-range begin end ;
+: accum-range ( irng -- rng ) begin-end accum-range boa ;
+: accum-next ( irng -- rng ) [ iterator-increment ] change-begin ;
+: accum-end? ( irng -- ? ) [ begin>> ] [ end>> ] bi iterator-equal? ;
+
+
 ! for-each
 
 : ((iter-for-each)) ( iter quot -- iter quot )
@@ -303,7 +311,7 @@ M: sequences:sequence copy-range* sequences:clone-like ;
 ! M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 ! M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
 
-! also cyclic recursion.
+! also makes some problem.
 TUPLE: as-seq { rng read-only } ;
 C: <as-seq> as-seq
 ! INSTANCE: as-seq sequences:sequence
@@ -311,6 +319,9 @@ C: <as-seq> as-seq
 ! M: as-seq sequences.private:nth-unsafe rng>> begin iterator-advance iterator-read ;
 ! M: as-seq sequences.private:set-nth-unsafe rng>> begin iterator-advance iterator-write ;
 
-: range>seq ( rng -- newseq ) ;
 
+! range>seq
+
+: range>seq ( rng -- newseq )
+    0 vectors:<vector> [ sequences:suffix ] accumulate ;
 
