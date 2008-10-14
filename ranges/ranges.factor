@@ -27,12 +27,20 @@ M: iterator iterator-swap* ! default behavior
     2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
 
 
-! single-pass/forward-traversal protocol
+! single-pass-traversal protocol
 
 GENERIC: iterator-equal?* ( iter iter -- ? )
 GENERIC: iterator-increment* ( iter -- iter )
 : iterator-equal? iterator-equal?* ; inline
 : iterator-increment iterator-increment* ; inline
+
+
+! forward-traversal protocol
+
+GENERIC: iterator-clone* ( iter -- newiter )
+: iterator-clone iterator-clone* ; inline
+
+M: iterator iterator-clone* clone ; ! default behavior
 
 
 ! bidirectional-traversal protocol
@@ -75,23 +83,23 @@ C: <random-access-iterator-tag> random-access-iterator-tag
 
 ! number-iterator
 
-TUPLE: number-iterator { base read-only } ;
+TUPLE: number-iterator base ;
 C: <number-iterator> number-iterator
 
 INSTANCE: number-iterator iterator
 M: number-iterator iterator-traversal-tag* drop <random-access-iterator-tag> ;
 M: number-iterator iterator-read* base>> ;
 M: number-iterator iterator-equal?* [ base>> ] bi@ = ;
-M: number-iterator iterator-increment* base>> math:1+ <number-iterator> ;
-M: number-iterator iterator-decrement* base>> math:1- <number-iterator> ;
-M: number-iterator iterator-advance* base>> math:+ <number-iterator> ;
+M: number-iterator iterator-increment* [ math:1+ ] change-base ;
+M: number-iterator iterator-clone* base>> <number-iterator> ;
+M: number-iterator iterator-decrement* [ math:1- ] change-base ;
+M: number-iterator iterator-advance* swap [ math:+ ] curry change-base ;
 M: number-iterator iterator-difference* [ base>> ] bi@ swap math:- ;
 
 
 ! delegate-iterator mixin
 
 MIXIN: delegate-iterator
-GENERIC: delegate-iterator-clone ( base iter -- newiter )
 
 INSTANCE: delegate-iterator iterator
 M: delegate-iterator iterator-traversal-tag* base>> iterator-traversal-tag ;
@@ -99,30 +107,30 @@ M: delegate-iterator iterator-read* base>> iterator-read ;
 M: delegate-iterator iterator-write* base>> iterator-write ;
 M: delegate-iterator iterator-swap* [ base>> ] bi@ iterator-swap ;
 M: delegate-iterator iterator-equal?* [ base>> ] bi@ iterator-equal? ;
-M: delegate-iterator iterator-increment* dup base>> iterator-increment swap delegate-iterator-clone ;
-M: delegate-iterator iterator-decrement* dup base>> iterator-decrement swap delegate-iterator-clone ;
-M: delegate-iterator iterator-advance* tuck base>> iterator-advance swap delegate-iterator-clone ;
+M: delegate-iterator iterator-increment* dup base>> iterator-increment drop ;
+M: delegate-iterator iterator-decrement* dup base>> iterator-decrement drop ;
+M: delegate-iterator iterator-advance* tuck base>> iterator-advance drop ;
 M: delegate-iterator iterator-difference* [ base>> ] bi@ iterator-difference ;
 
 
 ! outdirect-iterator
 
-TUPLE: outdirect-iterator { base read-only } ;
+TUPLE: outdirect-iterator base ;
 C: <outdirect-iterator> outdirect-iterator
 
 INSTANCE: outdirect-iterator delegate-iterator
-M: outdirect-iterator delegate-iterator-clone <outdirect-iterator> ;
 M: outdirect-iterator iterator-read* base>> ;
+M: outdirect-iterator iterator-clone* base>> <outdirect-iterator> ;
 
 
 ! reverse-iterator
 
-TUPLE: reverse-iterator { base read-only } ;
+TUPLE: reverse-iterator base ;
 C: <reverse-iterator> reverse-iterator
 
 INSTANCE: reverse-iterator delegate-iterator
-M: reverse-iterator delegate-iterator-clone drop <reverse-iterator> ;
 M: reverse-iterator iterator-increment* base>> iterator-decrement ;
+M: reverse-iterator iterator-clone* base>> <reverse-iterator> ;
 M: reverse-iterator iterator-decrement* base>> iterator-increment ;
 M: reverse-iterator iterator-advance* [ math:neg ] dip base>> iterator-advance ;
 M: reverse-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference ;
@@ -130,22 +138,22 @@ M: reverse-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference
 
 ! map-iterator
 
-TUPLE: map-iterator { base read-only } { quot read-only } ;
+TUPLE: map-iterator base { quot read-only } ;
 C: <map-iterator> map-iterator
 
 INSTANCE: map-iterator delegate-iterator
-M: map-iterator delegate-iterator-clone quot>> <map-iterator> ;
 M: map-iterator iterator-read* [ base>> ] [ quot>> ] bi [ iterator-read ] [ call ] bi* ;
+M: map-iterator iterator-clone* [ base>> ] [ quot>> ] bi <map-iterator> ;
 
 
 ! filter-iterator
 
-TUPLE: filter-iterator { base read-only } { quot read-only } ;
+TUPLE: filter-iterator base { quot read-only } ;
 C: <filter-iterator> filter-iterator
 
 INSTANCE: filter-iterator delegate-iterator
-M: filter-iterator delegate-iterator-clone quot>> <filter-iterator> ;
 M: filter-iterator iterator-increment* base>> iterator-decrement ;
+M: filter-iterator iterator-clone* [ base>> ] [ quot>> ] bi <filter-iterator> ;
 M: filter-iterator iterator-decrement* base>> iterator-increment ;
 M: filter-iterator iterator-advance* [ math:neg ] dip base>> iterator-advance ;
 M: filter-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference ;
@@ -153,14 +161,14 @@ M: filter-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference 
 
 ! sequence-iterator
 
-TUPLE: sequence-iterator { base read-only } { seq read-only } ;
+TUPLE: sequence-iterator base { seq read-only } ;
 : <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] dip sequence-iterator boa ;
 
 INSTANCE: sequence-iterator delegate-iterator
-M: sequence-iterator delegate-iterator-clone seq>> sequence-iterator boa ;
 M: sequence-iterator iterator-traversal-tag* drop <random-access-iterator-tag> ;
 M: sequence-iterator iterator-read* dup base>> swap seq>> [ iterator-read ] dip sequences:nth ;
 M: sequence-iterator iterator-write* dup base>> swap seq>> [ iterator-read ] dip sequences:set-nth ;
+M: sequence-iterator iterator-clone* [ base>> ] [ seq>> ] bi sequence-iterator boa ; 
 
 
 ! iterator output
