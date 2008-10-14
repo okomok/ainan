@@ -247,22 +247,27 @@ GENERIC: (iter-distance) ( begin end tag -- n )
 
 ! distance
 
-: distance ( rng -- n ) begin end iter-distance ;
+: distance ( rng -- n ) begin-end iter-distance ;
 
 
 ! empty?
 
-: empty? ( rng -- ? ) dup begin end iterator-equal? ;
+: empty? ( rng -- ? ) begin-end iterator-equal? ;
 
 
 ! iter-range
 
-TUPLE: iter-range begin end ;
+TUPLE: iter-range { begin read-only } { end read-only } ;
 C: <iter-range> iter-range
 
 INSTANCE: iter-range range
 M: iter-range begin* begin>> ;
 M: iter-range end* end>> ;
+
+
+! offset
+
+! : offset ( rng n m -- rng ) begin-end [ swap iter-advance ] bi* ;
 
 
 ! sequence random-access-range
@@ -276,7 +281,7 @@ M: sequences:sequence clone* sequences:clone-like ;
 ! random-access-range sequence
 
 INSTANCE: range sequences:sequence
-M: range sequences:length dup begin end iterator-difference ;
+M: range sequences:length begin-end iterator-difference ;
 M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
 
@@ -295,11 +300,6 @@ INSTANCE: range lists:list
 M: range lists:car begin iterator-read ;
 M: range lists:cdr begin iterator-increment ;
 M: range lists:nil? empty? ;
-
-
-! offset
-
-: offset ( rng n m -- newrng ) begin end [ swap iter-advance ] bi* ;
 
 
 
