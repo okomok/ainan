@@ -4,5 +4,5 @@ AINAN-USING: sequences math ;
 AINAN-USING: ainan.ranges ;
 
 [ t ] [ t ] unit-test
-! [ { 2 3 4 5 } ] [ { 1 2 3 4 5 6 7 } -1 -2 ainan.ranges:offset } unit-test
-
+! [ { 2 3 4 5 } ] [ { 1 2 3 4 5 6 7 } -1 -2 ainan.ranges:offset ] unit-test
+[ 2 ] [ { 1 2 3 4 } [ math:1+ ] ainan.ranges:map ainan.ranges:begin ainan.ranges:iterator-read ] unit-test

@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: kernel accessors ainan.using ;
-AINAN-USING: arrays io lists math quotations sequences sequences.private ;
+AINAN-USING: arrays io math quotations sequences sequences.private ;
 
 IN: ainan.ranges
 
@@ -121,7 +121,7 @@ C: <reverse-iterator> reverse-iterator
 INSTANCE: reverse-iterator delegate-iterator
 M: reverse-iterator iterator-increment* base>> iterator-decrement ;
 M: reverse-iterator iterator-decrement* base>> iterator-increment ;
-M: reverse-iterator iterator-advance* [ math:neg ] slip base>> iterator-advance ;
+M: reverse-iterator iterator-advance* [ math:neg ] dip base>> iterator-advance ;
 M: reverse-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference ;
 
 
@@ -131,7 +131,7 @@ TUPLE: map-iterator { base read-only } { quot read-only } ;
 C: <map-iterator> map-iterator
 
 INSTANCE: map-iterator delegate-iterator
-M: map-iterator iterator-read* base>> iterator-read quot>> call ;
+M: map-iterator iterator-read* [ base>> ] [ quot>> ] bi [ iterator-read ] [ call ] bi* ;
 
 
 ! filter-iterator
@@ -142,30 +142,19 @@ C: <filter-iterator> filter-iterator
 INSTANCE: filter-iterator delegate-iterator
 M: filter-iterator iterator-increment* base>> iterator-decrement ;
 M: filter-iterator iterator-decrement* base>> iterator-increment ;
-M: filter-iterator iterator-advance* [ math:neg ] slip base>> iterator-advance ;
+M: filter-iterator iterator-advance* [ math:neg ] dip base>> iterator-advance ;
 M: filter-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference ;
 
 
 ! sequence-iterator
 
 TUPLE: sequence-iterator { base read-only } { seq read-only } ;
-: <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] slip sequence-iterator boa ;
+: <sequence-iterator> ( n seq -- newiter ) [ <number-iterator> ] dip sequence-iterator boa ;
 
 INSTANCE: sequence-iterator delegate-iterator
 M: sequence-iterator iterator-traversal-tag* <random-access-iterator-tag> ;
-M: sequence-iterator iterator-read* dup base>> swap seq>> [ iterator-read ] slip sequences:nth ;
-M: sequence-iterator iterator-write* dup base>> swap seq>> [ iterator-read ] slip sequences:set-nth ;
-
-
-! list-iterator
-
-TUPLE: list-iterator { cons read-only } ;
-
-INSTANCE: list-iterator iterator
-M: list-iterator iterator-traversal-tag* <forward-iterator-tag> ;
-M: list-iterator iterator-read* cons>> lists:car ;
-M: list-iterator iterator-equal?* [ cons>> ] bi@ eq? ;
-M: list-iterator iterator-increment* cons>> lists:cdr ;
+M: sequence-iterator iterator-read* dup base>> swap seq>> [ iterator-read ] dip sequences:nth ;
+M: sequence-iterator iterator-write* dup base>> swap seq>> [ iterator-read ] dip sequences:set-nth ;
 
 
 ! iterator output
@@ -215,13 +204,13 @@ GENERIC: clone* ( from exemplar -- newrng ) ! optional
     swapd (iter-for-each) ; inline
 
 : for-each ( rng quot -- )
-    [ begin-end ] slip ; inline
+    [ begin-end ] dip ; inline
 
 
 ! accumulate
 
 : iter-accumulate ( begin end identity quot -- final )
-    [ -rot ] slip iter-for-each ; inline
+    [ -rot ] dip iter-for-each ; inline
 
 : accumulate ( rng identity quot -- )
     [ begin-end ] 2slip ; inline
@@ -265,41 +254,42 @@ M: iter-range begin* begin>> ;
 M: iter-range end* end>> ;
 
 
+! map
+
+: map ( rng quot -- rng )
+    [ begin-end ] dip ! rng begin-end [quot] -> begin end [quot]
+    [ <map-iterator> ] curry ! begin end [ [quot] <map-iterator> ]
+     bi@ <iter-range> ! begin [quot] <map-iterator> end [quot] <map-iterator> <iter-range>
+      ;
+
+
+! numbers
+
+: numbers ( n m -- rng ) [ <number-iterator> ] bi@ <iter-range> ;
+
+
 ! offset
 
-! : offset ( rng n m -- rng ) begin-end [ swap iter-advance ] bi* ;
+: offset ( rng n m -- rng ) [ begin-end ] 2slip [ swap iter-advance ] bi* <iter-range> ;
 
 
 ! sequence random-access-range
 
 INSTANCE: sequences:sequence range
-M: sequences:sequence begin* swap 0 <sequence-iterator> ;
-M: sequences:sequence end* dup [ sequences:length ] slip <sequence-iterator> ;
+M: sequences:sequence begin* 0 swap <sequence-iterator> ;
+M: sequences:sequence end* dup [ sequences:length ] dip <sequence-iterator> ;
 M: sequences:sequence clone* sequences:clone-like ;
-
 
 ! random-access-range sequence
 
-INSTANCE: range sequences:sequence
-M: range sequences:length begin-end iterator-difference ;
-M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
-M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
+! Hmm, seems to result in cyclic recursion.
+! INSTANCE: range sequences:sequence
+! M: range sequences:length begin-end iterator-difference ;
+! M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
+! M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
+TUPLE: wrapper rng ; ! or?? : range>seq ( rng -- newseq ) ;
 
 
-! list forward-range
-
-INSTANCE: lists:list range
-M: lists:list begin* <list-iterator> ;
-M: lists:list end* lists:nil <list-iterator> ;
-! M: lists:list clone* ?? lists:seq>cons ;
-
-
-! forward-range list
-
-INSTANCE: range lists:list
-M: range lists:car begin iterator-read ;
-M: range lists:cdr begin iterator-increment ;
-M: range lists:nil? empty? ;
 
 
 
