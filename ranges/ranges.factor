@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: kernel ainan.using ;
-AINAN-USING: arrays io lists math quotations sequences sequences.private ;
+AINAN-USING: arrays assoc io lists math quotations sequences sequences.private ;
 
 IN: ainan.ranges
 
@@ -158,9 +158,10 @@ M: sequence-iterator iterator-write* dup base>> swap seq>> [ iterator-read ] sli
 
 TUPLE: list-iterator cons ;
 
+INSTANCE: list-iterator iterator ;
 M: list-iterator iterator-traversal-tag* <forward-iterator-tag> ;
 M: list-iterator iterator-read* cons>> lists:car ;
-M: list-iterator iterator-equal?* [ cons>> ] eq? ;
+M: list-iterator iterator-equal?* [ cons>> ] bi@ eq? ;
 M: list-iterator iterator-increment* cons>> lists:cdr ;
 
 
@@ -182,14 +183,35 @@ INSTANCE: io:stream output
 M: io:stream output-write* io:stream-write1 ;
 
 
-! iter-accumulate
+! begin-end
 
-: (iter-accumulate-next) ( prev quot begin -- next ) iterator-read swap call ;
+: begin-end ( rng -- begin end )
+    [ begin ] [ end ] bi ; inline
 
-: (iter-accumulate) ( identity quot begin end -- final )
-    2dup iterator-equal? [ 3drop ] [ [ iterator-read swap call ] slip [ iter-increment ] slip (iter-accumulate) ] if ;
 
- : iter-accumulate ( begin end identity quot -- final ) 2swap (iter-accumulate) ; inline
+! for-each
+
+: ((iter-for-each)) ( iter quot -- iter quot )
+    [ [ iterator-read ] dip call ] [ [ iterator-increment ] dip ] 2bi ;
+
+: (iter-for-each) ( end begin quot -- )
+    2over iterator-equal? [ 3drop ] [ ((iter-for-each)) (iter-for-each) ] if ;
+
+: iter-for-each ( begin end quot -- )
+    swapd (iter-for-each) ; inline
+
+: for-each ( rng quot -- )
+    [ begin-end ] slip ; inline
+
+
+! accumulate
+
+: iter-accumulate ( begin end identity quot -- final )
+    [ -rot ] slip iter-for-each ; inline
+
+: accumulate ( rng identity quot -- )
+    [ begin-end ] 2slip ; inline
+
 
 ! iter-swap
 
@@ -246,7 +268,7 @@ M: iter-range begin begin>> ;
 M: iter-range end end>> ;
 
 
-! sequence random-access range
+! sequence random-access-range
 
 INSTANCE: sequences:sequence range
 M: sequences:sequence begin swap 0 <sequence-iterator> ;
@@ -254,7 +276,7 @@ M: sequences:sequence end dup [ sequences:length ] slip <sequence-iterator> ;
 M: sequences:sequence clone sequences:clone-like ;
 
 
-! random-access range sequence
+! random-access-range sequence
 
 INSTANCE: range sequences:sequence
 M: range sequences:length dup begin end iterator-distance ;
@@ -262,27 +284,21 @@ M: range sequences.private:nth-unsafe begin iterator-advance iterator-read ;
 M: range sequences.private:set-nth-unsafe begin iterator-advance iterator-write ;
 
 
-! list forward range
+! list forward-range
 
 INSTANCE: lists:list range
 M: lists:list begin <list-iterator> ;
-M: lists:list end nil <list-iterator> ;
+M: lists:list end lists:nil <list-iterator> ;
 M: lists:list clone ?? lists:seq>cons ;
 
 
-! forward range list
+! forward-range list
 
 INSTANCE: range lists:list
 M: range lists:car begin iterator-read ;
 M: range lists:cdr begin iterator-increment ;
 M: range lists:nil? empty? ;
 
-
-! do-accumulate
-
-: (accumulate)
-
-: accumulate ( rng seed quot -- result ) swap dup begin end quot (accumulate)
 
 ! offset
 
