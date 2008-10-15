@@ -14,7 +14,12 @@ GENERIC: iterator-traversal-tag* ( iter -- tag )
 : iterator-traversal-tag iterator-traversal-tag* ; inline
 
 
-! value-access protocol
+! assert-compatible
+
+: assert-compatible ( iter1 iter2 -- ) 2drop ; ! TODO
+
+
+! element-access protocol
 
 GENERIC: iterator-read* ( iter -- elt )
 GENERIC: iterator-write* ( elt iter -- )
@@ -26,7 +31,7 @@ GENERIC: iterator-write* ( elt iter -- )
 
 GENERIC: iterator-equal?* ( iter iter -- ? )
 GENERIC: iterator-increment* ( iter -- iter )
-: iterator-equal? iterator-equal?* ; inline
+: iterator-equal? 2dup assert-compatible iterator-equal?* ; inline
 : iterator-increment iterator-increment* ; inline
 
 
@@ -34,8 +39,6 @@ GENERIC: iterator-increment* ( iter -- iter )
 
 GENERIC: iterator-clone* ( iter -- newiter )
 : iterator-clone iterator-clone* ; inline
-
-M: iterator iterator-clone* clone ; ! default behavior
 
 
 ! bidirectional-traversal protocol
@@ -207,7 +210,7 @@ GENERIC: copy-range* ( from exemplar -- newrng ) ! optional
 
 ! accum-range
 
-TUPLE: accum-range begin end ;
+TUPLE: accum-range begin { end read-only } ;
 : <accum-range> ( rng -- arng ) begin-end accum-range boa ;
 : accum-elt ( arng -- elt ) begin>> iterator-read ;
 : accum-next ( arng -- arng ) [ iterator-increment ] change-begin ;
