@@ -134,16 +134,6 @@ M: reverse-iterator iterator-advance* [ math:neg ] dip base>> iterator-advance ;
 M: reverse-iterator iterator-difference* [ base>> ] bi@ swap iterator-difference ;
 
 
-! map-iterator
-
-TUPLE: map-iterator base { quot read-only } ;
-C: <map-iterator> map-iterator
-
-INSTANCE: map-iterator delegate-iterator
-M: map-iterator iterator-read* [ base>> ] [ quot>> ] bi [ iterator-read ] [ call ] bi* ;
-M: map-iterator iterator-clone* [ base>> ] [ quot>> ] bi <map-iterator> ;
-
-
 ! filter-iterator
 
 TUPLE: filter-iterator base { quot read-only } ;
@@ -277,11 +267,6 @@ C: <iter-range> iter-range
 INSTANCE: iter-range range
 M: iter-range begin* begin>> ;
 M: iter-range end* end>> ;
-
-
-! map
-
-: map ( rng quot -- rng ) [ begin-end ] dip [ <map-iterator> ] curry bi@ <iter-range> ;
 
 
 ! numbers
