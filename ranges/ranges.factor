@@ -18,13 +18,8 @@ GENERIC: iterator-traversal-tag* ( iter -- tag )
 
 GENERIC: iterator-read* ( iter -- elt )
 GENERIC: iterator-write* ( elt iter -- )
-GENERIC: iterator-swap* ( iter iter -- )
 : iterator-read iterator-read* ; inline
 : iterator-write iterator-write* ; inline
-: iterator-swap iterator-swap* ; inline
-
-M: iterator iterator-swap* ! default behavior
-    2dup [ iterator-read ] bi@ swap clone swapd swap iterator-write swap iterator-write ;
 
 
 ! single-pass-traversal protocol
@@ -105,7 +100,6 @@ INSTANCE: delegate-iterator iterator
 M: delegate-iterator iterator-traversal-tag* base>> iterator-traversal-tag ;
 M: delegate-iterator iterator-read* base>> iterator-read ;
 M: delegate-iterator iterator-write* base>> iterator-write ;
-M: delegate-iterator iterator-swap* [ base>> ] bi@ iterator-swap ;
 M: delegate-iterator iterator-equal?* [ base>> ] bi@ iterator-equal? ;
 M: delegate-iterator iterator-increment* [ iterator-increment ] change-base ; ! dup base>> iterator-increment drop ;
 M: delegate-iterator iterator-decrement* [ iterator-decrement ] change-base ; ! dup base>> iterator-decrement drop ;
@@ -201,16 +195,20 @@ GENERIC: copy-range* ( from exemplar -- newrng ) ! optional
 : copy-range copy-range* ; inline
 
 
+! range-traversal-tag
+
+: range-traversal-tag ( rng -- tag ) begin iterator-traversal-tag ;
+
+
 ! begin-end
 
-: begin-end ( rng -- begin end )
-    [ begin ] [ end ] bi ; inline
+: begin-end ( rng -- begin end ) [ begin ] [ end ] bi ; inline
 
 
 ! accum-range
 
 TUPLE: accum-range begin end ;
-: <accum-range> ( arng -- rng ) begin-end accum-range boa ;
+: <accum-range> ( rng -- arng ) begin-end accum-range boa ;
 : accum-elt ( arng -- elt ) begin>> iterator-read ;
 : accum-next ( arng -- arng ) [ iterator-increment ] change-begin ;
 : accum-end? ( arng -- ? ) [ begin>> ] [ end>> ] bi iterator-equal? ;
@@ -218,20 +216,20 @@ TUPLE: accum-range begin end ;
 
 ! for-each ( SEE: lists:leach )
 
-: ((for-each)) ( arng quot -- arng quot )
-    [ [ accum-elt ] dip call ] [ [ accum-next ] dip ] 2bi ; inline
-
-: (for-each) ( arng quot -- )
-    over accum-end? [ 2drop ] [ ((for-each)) (for-each) ] if ; inline
-
-: for-each ( rng quot -- )
-    [ <accum-range> ] dip (for-each) ; inline
+: ((for-each)) ( arng quot -- arng quot ) [ [ accum-elt ] dip call ] [ [ accum-next ] dip ] 2bi ; inline
+: (for-each) ( arng quot -- ) over accum-end? [ 2drop ] [ ((for-each)) (for-each) ] if ; inline
+: for-each ( rng quot -- ) [ <accum-range> ] dip (for-each) ; inline
 
 
 ! accumulate ( SEE: lists:foldl )
 
-: accumulate ( rng identity quot -- )
-    swapd for-each ; inline
+: accumulate ( rng identity quot -- ) swapd for-each ; inline
+
+
+! iter-swap
+
+: iter-swap ( iter1 iter2 -- )
+    [ [ iterator-read ] dip iterator-write ] 2keep iterator-read swap iterator-write ;
 
 
 ! iter-advance
@@ -243,18 +241,13 @@ M: single-pass-iterator-tag (iter-advance) drop swap [ iterator-increment ] curr
 M: random-access-iterator-tag (iter-advance) drop swap iterator-advance ;
 
 
-! iter-distance
-
-GENERIC: (iter-distance) ( begin end tag -- n )
-: iter-distance ( begin end -- n ) dup iterator-traversal-tag (iter-distance) ; inline
-
-M: single-pass-iterator-tag (iter-distance) drop 0 [ drop 1 math:+ ] accumulate ;
-M: random-access-iterator-tag (iter-distance) drop swap iterator-difference ;
-
-
 ! distance
 
-: distance ( rng -- n ) begin-end iter-distance ; inline
+GENERIC: (distance) ( rng tag -- n )
+: distance ( rng -- n ) dup range-traversal-tag (distance) ; inline
+
+M: single-pass-iterator-tag (distance) drop 0 [ drop math:1+ ] accumulate ;
+M: random-access-iterator-tag (distance) drop begin-end swap iterator-difference ;
 
 
 ! empty?
@@ -274,20 +267,17 @@ M: iter-range end* end>> ;
 
 ! map
 
-: map ( rng quot -- rng )
-    [ begin-end ] dip [ <map-iterator> ] curry bi@ <iter-range> ;
+: map ( rng quot -- rng ) [ begin-end ] dip [ <map-iterator> ] curry bi@ <iter-range> ;
 
 
 ! numbers
 
-: numbers ( n m -- rng )
-    [ <number-iterator> ] bi@ <iter-range> ;
+: numbers ( n m -- rng ) [ <number-iterator> ] bi@ <iter-range> ;
 
 
 ! offset
 
-: offset ( rng n m -- rng )
-    [ begin-end ] 2slip [ swap iter-advance ] bi* <iter-range> ;
+: offset ( rng n m -- rng ) [ begin-end ] 2slip [ swap iter-advance ] bi* <iter-range> ;
 
 
 ! sequence random-access-range
@@ -317,6 +307,5 @@ C: <as-seq> as-seq
 
 ! range>seq
 
-: range>seq ( rng -- newseq )
-    0 vectors:<vector> [ sequences:suffix ] accumulate ;
+: range>seq ( rng -- newseq ) 0 vectors:<vector> [ sequences:suffix ] accumulate ;
 
