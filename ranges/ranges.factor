@@ -11,23 +11,13 @@ IN: ainan.ranges
 
 MIXIN: iterator
 GENERIC: iterator-traversal-tag* ( iter -- tag )
-GENERIC: iterator-compatible?* ( iter1 iter2 -- ? ) ! optional
 : iterator-traversal-tag iterator-traversal-tag* ; inline
-: iterator-compatible? iterator-compatible?* ; inline
-
-M: iterator iterator-compatible?* 2drop t ; ! default
 
 
 ! iterator-incompatible-error
 
 TUPLE: iterator-incompatible-error iter1 iter2 ;
 : iterator-incompatible-error ( iter1 iter2 -- * ) \ iterator-incompatible-error boa throw ;
-
-
-! assert-compatible
-
-: assert-compatible ( iter1 iter2 -- )
-    2dup iterator-compatible? [ 2drop ] [ iterator-incompatible-error ] if ;
 
 
 ! element-access protocol
@@ -42,7 +32,7 @@ GENERIC: iterator-write* ( elt iter -- )
 
 GENERIC: iterator-equal?* ( iter1 iter2 -- ? )
 GENERIC: iterator-increment* ( iter -- iter )
-: iterator-equal? [ assert-compatible ] [ iterator-equal?* ] 2bi ; inline
+: iterator-equal? iterator-equal?* ; inline
 : iterator-increment iterator-increment* ; inline
 
 
@@ -63,7 +53,7 @@ GENERIC: iterator-decrement* ( iter -- iter )
 GENERIC: iterator-advance* ( n iter -- iter )
 GENERIC: iterator-difference* ( iter1 iter2 -- n )
 : iterator-advance iterator-advance* ; inline
-: iterator-difference [ assert-compatible ] [ iterator-difference* ] 2bi ; inline
+: iterator-difference iterator-difference* ; inline
 
 
 ! output protocol
@@ -112,7 +102,6 @@ MIXIN: delegate-iterator
 
 INSTANCE: delegate-iterator iterator
 M: delegate-iterator iterator-traversal-tag* base>> iterator-traversal-tag ;
-M: delegate-iterator iterator-compatible?* [ base>> ] bi@ iterator-compatible? ;
 M: delegate-iterator iterator-read* base>> iterator-read ;
 M: delegate-iterator iterator-write* base>> iterator-write ;
 M: delegate-iterator iterator-equal?* [ base>> ] bi@ iterator-equal? ;
