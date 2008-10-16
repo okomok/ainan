@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 
 USING: accessors kernel
-    ainan.ranges.iterator-adapter ainan.ranges.iter-range ainan.ranges.range ;
+    ainan.ranges.iterator ainan.ranges.iterator-adapter ainan.ranges.iter-range ainan.ranges.range ;
 
 IN: ainan.ranges
 
@@ -14,7 +14,7 @@ C: <outdirect-iterator> outdirect-iterator
 
 INSTANCE: outdirect-iterator iterator-adapter
 M: outdirect-iterator iterator-read* base>> ;
-M: outdirect-iterator iterator-clone* base>> <outdirect-iterator> ;
+M: outdirect-iterator iterator-clone* base>> iterator-clone <outdirect-iterator> ;
 
 
 ! outdirect

@@ -11,4 +11,3 @@ IN: ainan.ranges
     0 vectors:<vector> [ sequences:suffix ] accumulate ; inline
 
 : range>seq to_seq ; inline
-

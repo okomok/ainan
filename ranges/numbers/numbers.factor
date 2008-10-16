@@ -21,7 +21,7 @@ M: number-iterator iterator-increment* [ math:1+ ] change-base ;
 M: number-iterator iterator-clone* base>> <number-iterator> ;
 M: number-iterator iterator-decrement* [ math:1- ] change-base ;
 M: number-iterator iterator-advance* swap [ math:+ ] curry change-base ;
-M: number-iterator iterator-difference* [ base>> ] bi@ swap math:- ;
+M: number-iterator iterator-difference* [ base>> ] bi@ math:- ;
 
 
 ! numbers
