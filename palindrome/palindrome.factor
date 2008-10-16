@@ -14,3 +14,9 @@ QUALIFIED-WITH: unicode.case filter
 : normalize ( str -- newstr ) [ unicode.categories:Letter? ] sequences:filter filter:>lower ;
 
 : palindrome? ( string -- ? ) normalize dup sequences:reverse = ;
+
+
+<PRIVATE
+: foo ;
+PRIVATE>
+
