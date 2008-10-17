@@ -7,7 +7,7 @@ AINAN-QUALIFIED: sequences vectors ;
 IN: ainan.ranges
 
 
-: to_seq ( rng -- newseq )
+: to-seq ( rng -- newseq )
     0 vectors:<vector> [ sequences:suffix ] accumulate ; inline
 
-: range>seq to_seq ; inline
+: range>seq to-seq ; inline
