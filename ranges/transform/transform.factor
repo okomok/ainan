@@ -16,7 +16,7 @@ C: <transform-iterator> transform-iterator
 INSTANCE: transform-iterator iterator-adapter
 M: transform-iterator iterator-read*
     ! [ base>> ] [ drop [ 1+ ] ] bi [ iterator-read ] [ call ] bi* ; ! compiles
-    [ base>> ] [ quot>> ] bi [ iterator-read ] [ call-unary-quot ] bi* ; ! inference failure...
+    [ base>> ] [ quot>> ] bi [ iterator-read ] [ call ] bi* ; ! inference failure...
 
 M: transform-iterator iterator-clone* [ base>> iterator-clone ] [ quot>> ] bi <transform-iterator> ;
 
